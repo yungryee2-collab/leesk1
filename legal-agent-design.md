@@ -84,8 +84,12 @@ ORCHESTRATOR (CLAUDE.md)
   ├─→ [DD 단계] DD Agent
   │     due-diligence → regulatory → strategic-analysis
   │
-  └─→ [계약협상 단계] Contract Negotiation Agent
-        contract-review → negotiation → deal-structure
+  ├─→ [계약협상 단계] Contract Negotiation Agent     ←─ 병렬 실행 가능
+  │     contract-review → negotiation → deal-structure  │
+  │                                                      │
+  └─→ [계약 의존성 단계] Contract Dependency Agent ──────┘
+        contract-dependency (독립 실행 또는 병렬)
+        모드: full | hub-only | impact:[조항번호]
   │
   ▼
 QA Reviewer Agent
@@ -185,6 +189,47 @@ QA Reviewer Agent
 
 ---
 
+#### Phase 3-B: Contract Dependency Agent (독립 에이전트)
+
+**독립 실행 여부**: 오케스트레이터 없이 직접 호출 가능. Contract Negotiation Agent와 병렬 실행 권장.
+
+**스킬**: `contract-dependency` (단독)
+
+**분석 모드**:
+
+| 모드 | 동작 |
+|------|------|
+| `full` | 전체 조항 파싱 + 의존관계 그래프 + 허브 조항 요약 |
+| `hub-only` | 핵심 연결 허브 조항만 빠르게 식별 |
+| `impact:[조항번호]` | 지정 조항 변경 시 연쇄 영향 분석 (예: `impact:제6조`) |
+
+**처리 흐름**:
+```
+계약서 파싱 (parse_document.py)
+→ 의존관계 그래프 구축 (build_dependency_graph.py)
+   ├── 명시적 교차참조 탐지 (정규식)
+   └── 정의 용어 사용 매핑 (문자열 검색)
+→ LLM 분석 (contract-dependency 스킬)
+   ├── 논리적 의존 탐지 (LLM 판단)
+   ├── 허브 조항 식별 및 순위화
+   └── [impact 모드] 변경 영향 시뮬레이션 (2hop 전수)
+→ 자기검증 → 산출물 저장
+```
+
+**LLM 판단 영역**: 논리적 의존 탐지, 허브 조항 위험도 해석, 변경 영향 서술
+**코드 처리 영역**: 교차참조 정규식 탐지, 정의 용어 매핑, 그래프 JSON 생성
+
+**산출물**:
+- `/output/reports/dependency_map_[딜명].md` (허브 조항·전체 의존관계·고립 조항)
+- `/output/logs/dependency_graph_[딜명].json` (기계 판독 가능 그래프)
+- `/output/reports/impact_[조항번호]_[딜명].md` (impact 모드 시만 생성)
+
+**성공 기준**: 전 조항 100% 분류 + 명시적 교차참조 누락 0건 + 허브 조항 상위 5개 + Critical 영향 누락 0건
+**검증**: 규칙 기반 (파싱 커버리지) + LLM 자기검증
+**실패 처리**: 자동 재시도 최대 2회 → 파트너 에스컬레이션
+
+---
+
 #### Phase 4: QA Reviewer Agent
 
 **스킬 체인**: `qa-reviewer` → (필요 시) `legal-translation`
@@ -205,7 +250,30 @@ QA Reviewer Agent
 
 ---
 
-### 2.3 체이닝 흐름
+### 2.3 Contract Dependency Agent 체이닝 및 병렬 실행
+
+```
+[독립 실행]
+계약서 업로드 → Contract Dependency Agent 단독 호출
+  → dependency_map_[딜명].md 생성
+
+[병렬 실행 — 계약협상 단계]
+오케스트레이터
+  ├─→ Contract Negotiation Agent (레드라인 작성)
+  └─→ Contract Dependency Agent (의존관계 분석)
+       ↓ (각각 독립 실행)
+오케스트레이터: 두 산출물 통합
+  → 레드라인 수정 시 의존성 영향 교차 검토
+  → QA Reviewer: 레드라인↔의존관계 일관성 검증
+
+[impact 모드 — 협상 중 조항 변경 검토]
+파트너: "제6조 이자율 조건 변경 검토 요청"
+오케스트레이터 → Contract Dependency Agent (impact:제6조)
+  → impact_제6조_[딜명].md 생성
+  → Contract Negotiation Agent에 영향 조항 목록 주입
+```
+
+### 2.4 체이닝 흐름 (DD → 계약협상)
 
 ```
 Phase 2 완료 → step_dd_[딜명].json 저장
@@ -218,7 +286,7 @@ Phase 3 시작 시 step_dd JSON 로드
   → 조항별 수정 우선순위에 DD 이슈 가중치 적용
 ```
 
-### 2.4 병렬 처리 (복수 계약서, 선택적)
+### 2.5 병렬 처리 (복수 계약서, 선택적)
 
 ```
 오케스트레이터
@@ -242,6 +310,7 @@ Phase 3 시작 시 step_dd JSON 로드
   ├── /.claude
   │   ├── /skills/
   │   │   ├── contract-review.md
+  │   │   ├── contract-dependency.md             # ← 신규
   │   │   ├── qa-reviewer.md
   │   │   ├── legal-translation.md
   │   │   ├── strategic-analysis.md
@@ -252,6 +321,7 @@ Phase 3 시작 시 step_dd JSON 로드
   │   │   └── deal-structure.md
   │   ├── /scripts/
   │   │   ├── parse_document.py              # PDF/DOCX 파싱·텍스트 추출
+  │   │   ├── build_dependency_graph.py      # 조항 의존관계 그래프 구축 ← 신규
   │   │   ├── index_clauses.py               # 계약 조항 색인·검색
   │   │   ├── format_redline.py              # 레드라인 형식 변환
   │   │   ├── fetch_fx_rates.py              # 환율 API 호출
@@ -265,6 +335,7 @@ Phase 3 시작 시 step_dd JSON 로드
   │       ├── term-sheet-agent.md
   │       ├── dd-agent.md
   │       ├── contract-negotiation-agent.md
+  │       ├── contract-dependency-agent.md      # ← 신규
   │       └── qa-reviewer-agent.md
   ├── /output
   │   ├── /drafts/                           # Term Sheet 초안·계약수정안
@@ -294,9 +365,11 @@ Phase 3 시작 시 step_dd JSON 로드
 | Term Sheet Agent | term-sheet-agent.md | Term Sheet 작성·협상안 | 원본 TS + step JSON (선택) | termsheet_*.md + step JSON |
 | DD Agent | dd-agent.md | DD 체크리스트·이슈 분석 | DD 자료 | dd_report_*.md + step JSON |
 | Contract Negotiation Agent | contract-negotiation-agent.md | 계약수정안·협상전략 | 계약서 + step_dd JSON | redline_*.md + memo + step JSON |
+| Contract Dependency Agent | contract-dependency-agent.md | 조항 의존관계 분석·변경 영향 시뮬레이션 | 계약서 + (선택) step_dd JSON | dependency_map_*.md + dependency_graph_*.json + (선택) impact_*.md |
 | QA Reviewer Agent | qa-reviewer-agent.md | 품질 검증·언어 최종화 | 모든 산출물 | PASS/FAIL + 최종본 |
 
 **원칙**: 서브에이전트 간 직접 호출 금지. 모든 흐름은 CLAUDE.md 경유.
+**예외**: Contract Dependency Agent는 독립 실행 가능 (오케스트레이터 없이 직접 호출 허용).
 
 ### 3.4 스킬 활용 선택 및 트리거 조건
 
@@ -311,6 +384,7 @@ Phase 3 시작 시 step_dd JSON 로드
 | `deal-structure` | Contract Negotiation Agent | 거래구조 최적화 필요 시 |
 | `qa-reviewer` | QA Reviewer Agent | 모든 단계 산출물 생성 완료 후 |
 | `legal-translation` | QA Reviewer Agent | 영문↔한국어 변환 필요 시 |
+| `contract-dependency` | Contract Dependency Agent | 계약서 입력 후 조항 의존관계 분석 요청 시 / 특정 조항 변경 영향 파악 필요 시 |
 
 ### 3.5 주요 산출물 파일 형식
 
@@ -370,6 +444,64 @@ Phase 3 시작 시 step_dd JSON 로드
   "critical_issues": [],
   "recommended_action": "파트너 검토 요청"
 }
+```
+
+#### `/output/logs/dependency_graph_[딜명].json` ← 신규
+```json
+{
+  "deal_id": "...",
+  "generated_at": "...",
+  "clause_count": 0,
+  "edge_count": 0,
+  "clauses": [
+    {
+      "id": "c001",
+      "article": "제1조",
+      "title": "정의",
+      "type": "DEFINITION",
+      "defined_terms": ["사업주", "완공일"],
+      "raw_text": "..."
+    }
+  ],
+  "edges": [
+    {
+      "from": "c001",
+      "to": "c008",
+      "type": "TERM_USAGE",
+      "strength": "STRONG",
+      "description": "'완공일' 정의가 선행조건 조항의 기준일로 사용됨",
+      "bidirectional": false
+    }
+  ],
+  "hub_clauses": [
+    {"clause_id": "c001", "article": "제1조", "title": "정의", "degree": 14}
+  ]
+}
+```
+
+#### `/output/reports/dependency_map_[딜명].md` ← 신규
+```
+# 계약서 조항 의존관계 분석 — [딜명]
+## Executive Summary (총 조항 수 | 엣지 수 | 허브 조항 상위 5)
+## 1. 허브 조항 (핵심 연결 조항)
+| 순위 | 조항 | 유형 | 연결 조항 수 | 비고 |
+## 2. 전체 의존관계 맵
+| 출발 조항 | 도착 조항 | 연결 유형 | 강도 | 설명 |
+## 3. 취약 연결 (단방향 강의존)
+## 4. 고립 조항 (독립 협상 가능)
+## 5. 가정사항
+```
+
+#### `/output/reports/impact_[조항번호]_[딜명].md` ← 신규 (impact 모드 시)
+```
+# 변경 영향 분석: [조항] — [딜명]
+## 핵심 요약 (영향 조항 수, Critical/Major/Minor)
+## 직접 영향 조항 (1단계)
+| 조항 | 연결 유형 | 영향 내용 | 위험 수준 |
+## 간접 영향 조항 (2단계 이상)
+| 조항 | 경로 | 영향 내용 | 위험 수준 |
+## 변경 불필요 확인 조항
+## 권고 수정 순서
 ```
 
 ---
