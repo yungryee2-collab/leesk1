@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from .fetcher import fetch_bids
 from .analyzer import analyze_bids
 from .report import generate_report
+from .emailer import send_email
 from .config import INTERVAL_DAYS, STATE_FILE, ANTHROPIC_API_KEY, PROCUREMENT_API_KEY
 
 
@@ -72,21 +73,24 @@ def run_once(days_back: int | None = None) -> str | None:
     # 1. API 호출
     bids = fetch_bids(days_back=days_back)
     if not bids:
-        print("[WARN] 수집된 입찰공고 없음")
-        _save_state({"last_run": datetime.now().isoformat()})
-        return None
+        print("[WARN] 수집된 입찰공고 없음 — 결과 없음 알림 발송")
+        results = {}
+        report_path = None
+    else:
+        # 2. 분류
+        results = analyze_bids(bids)
 
-    # 2. 분류
-    results = analyze_bids(bids)
+        # 3. 리포트 파일 저장
+        report_path = generate_report(results)
 
-    # 3. 리포트
-    report_path = generate_report(results)
+    # 4. 이메일 발송
+    send_email(results, report_path, period_days=days_back)
 
-    # 4. 상태 저장
+    # 5. 상태 저장
     _save_state({"last_run": datetime.now().isoformat()})
 
     print(f"\n{'='*60}")
-    print(f"[DONE] 완료. 리포트: {report_path}")
+    print(f"[DONE] 완료. 리포트: {report_path or '(없음)'}")
     print(f"{'='*60}\n")
 
     return report_path
