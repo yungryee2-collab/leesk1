@@ -11,12 +11,20 @@ load_dotenv()
 # ─── 조달청 API 설정 ─────────────────────────────────────────────
 # .env에 PROCUREMENT_API_KEY, PROCUREMENT_API_URL 설정 필요
 PROCUREMENT_API_KEY = os.getenv("PROCUREMENT_API_KEY", "YOUR_API_KEY_HERE")
-PROCUREMENT_API_URL = os.getenv(
-    "PROCUREMENT_API_URL",
-    # 기본값: 나라장터 입찰공고 API (data.go.kr)
-    # 실제 API URL을 .env에 PROCUREMENT_API_URL로 지정하세요
-    "http://apis.data.go.kr/1230000/BidPublicInfoService04/getBidPblancListInfoServc"
-)
+
+# 나라장터 API 엔드포인트 목록
+# 용역(법률·컨설팅·ODA 등)에 집중하기 위해 용역 전용 + 전체 통합 두 곳을 수집
+PROCUREMENT_API_URLS = [
+    # 용역 입찰공고 (법률자문, 타당성조사, ODA 컨설팅 등 서비스계약 전용)
+    "http://apis.data.go.kr/1230000/BidPublicInfoService04/getBidPblancListInfoServc03",
+    # 전체 통합 입찰공고 (물품/공사 포함 — 에너지 인프라 공사건도 커버)
+    "http://apis.data.go.kr/1230000/BidPublicInfoService04/getBidPblancListInfoServc",
+]
+
+# 단일 URL 호환 (기존 .env의 PROCUREMENT_API_URL 값도 지원)
+_single_url = os.getenv("PROCUREMENT_API_URL")
+if _single_url:
+    PROCUREMENT_API_URLS = [_single_url]
 
 # 한 번에 가져올 공고 수 (최대 100)
 API_PAGE_SIZE = int(os.getenv("API_PAGE_SIZE", "100"))
