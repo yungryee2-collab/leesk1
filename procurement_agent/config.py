@@ -15,13 +15,18 @@ PROCUREMENT_API_KEY = os.getenv("PROCUREMENT_API_KEY", "YOUR_API_KEY_HERE")
 # 나라장터 API 엔드포인트 목록
 # 용역(법률·컨설팅·ODA 등)에 집중하기 위해 용역 전용 + 전체 통합 두 곳을 수집
 PROCUREMENT_API_URLS = [
-    # 용역 입찰공고 기본 조회 (법률자문, 타당성조사, ODA 컨설팅 등)
+    # ① 나라장터 용역 입찰공고 (공공기관 발주 — 법률자문, 타당성조사, ODA 컨설팅 등)
     "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc",
+    # ② 누리장터 민간입찰공고 (민간기업·공공기관 민간계약 — 법률·에너지·해외사업 포함)
+    "https://apis.data.go.kr/1230000/ao/PrvtBidNtceService/getPrvtBidNtceList",
 ]
 
-# .env에 PROCUREMENT_API_URL 값이 있으면 우선 적용
+# .env에 PROCUREMENT_API_URLS (콤마 구분) 또는 PROCUREMENT_API_URL이 있으면 우선 적용
+_multi_url = os.getenv("PROCUREMENT_API_URLS")
 _single_url = os.getenv("PROCUREMENT_API_URL")
-if _single_url:
+if _multi_url:
+    PROCUREMENT_API_URLS = [u.strip() for u in _multi_url.split(",") if u.strip()]
+elif _single_url:
     PROCUREMENT_API_URLS = [_single_url]
 
 # 한 번에 가져올 공고 수 (최대 100)

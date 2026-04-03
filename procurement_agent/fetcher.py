@@ -44,18 +44,45 @@ def _parse_json_response(data: dict) -> list[dict]:
 
 
 def _normalize_bid(raw: dict) -> dict:
-    """다양한 API 응답 필드명을 표준 필드로 정규화"""
-    # 나라장터 API 필드명 매핑 (API마다 다를 수 있으므로 여러 후보 지원)
+    """다양한 API 응답 필드명을 표준 필드로 정규화
+    - 나라장터 용역 API (BidPublicInfoService)
+    - 누리장터 민간입찰 API (PrvtBidNtceService) 필드명 포함
+    """
     field_map = {
-        "bid_id": ["bidNtceNo", "공고번호", "ntceNo", "bid_id"],
-        "title": ["bidNtceNm", "공고명", "ntceNm", "title", "공고제목"],
-        "org": ["ntceInsttNm", "발주기관", "orgnztNm", "org", "기관명"],
-        "budget": ["presmptPrce", "추정가격", "budget", "예산"],
-        "deadline": ["bidClseDt", "입찰마감일시", "deadline", "마감일"],
-        "notice_date": ["bidNtceDt", "공고일시", "ntceDt", "notice_date", "공고일"],
+        "bid_id": [
+            "bidNtceNo",        # 나라장터
+            "prvtBidNtceNo",    # 누리장터 민간
+            "ntceNo", "공고번호", "bid_id",
+        ],
+        "title": [
+            "bidNtceNm",        # 나라장터
+            "bidNm",            # 누리장터 민간
+            "ntceNm", "공고명", "title", "공고제목",
+        ],
+        "org": [
+            "ntceInsttNm",      # 나라장터 수요기관
+            "dmstcInsttNm",     # 누리장터 수요기관
+            "orgnztNm", "발주기관", "org", "기관명",
+        ],
+        "budget": [
+            "presmptPrce",      # 나라장터 추정가격
+            "bsisAmt",          # 누리장터 기초금액
+            "추정가격", "budget", "예산",
+        ],
+        "deadline": [
+            "bidClseDt",        # 나라장터
+            "prvtBidClseDt",    # 누리장터
+            "입찰마감일시", "deadline", "마감일",
+        ],
+        "notice_date": [
+            "bidNtceDt",        # 나라장터
+            "prvtBidNtceDt",    # 누리장터
+            "ntceDt", "notice_date", "공고일시", "공고일",
+        ],
         "method": ["bidMethdNm", "입찰방식", "method"],
         "type": ["cntrctCnclsMthdNm", "계약방법", "type"],
         "url": ["detailUrl", "linkUrl", "url"],
+        "source": ["_source"],  # 수집 출처 (fetcher에서 주입)
     }
 
     normalized = {}
@@ -73,15 +100,22 @@ def _normalize_bid(raw: dict) -> dict:
 
 def _fetch_from_url(url: str, start_date: str, end_date: str) -> list[dict]:
     """단일 API URL에서 전체 페이지를 수집합니다."""
+    # 누리장터 민간 API는 날짜 파라미터명이 다름
+    is_prvt = "PrvtBidNtce" in url
+    date_param_start = "prvtBidNtceBgnDt" if is_prvt else "inqryBgnDt"
+    date_param_end   = "prvtBidNtceEndDt" if is_prvt else "inqryEndDt"
+    source_label     = "누리장터(민간)" if is_prvt else "나라장터(공공)"
+
     params = {
         "serviceKey": PROCUREMENT_API_KEY,
         "numOfRows": str(API_PAGE_SIZE),
         "pageNo": "1",
-        "inqryDiv": "1",
-        "inqryBgnDt": start_date,
-        "inqryEndDt": end_date,
+        date_param_start: start_date,
+        date_param_end: end_date,
         "type": "json",
     }
+    if not is_prvt:
+        params["inqryDiv"] = "1"
 
     collected = []
     page = 1
@@ -114,6 +148,8 @@ def _fetch_from_url(url: str, start_date: str, end_date: str) -> list[dict]:
         if not raw_items:
             break
 
+        for item in raw_items:
+            item["_source"] = source_label  # 출처 태깅
         collected.extend([_normalize_bid(item) for item in raw_items])
 
         if len(raw_items) < API_PAGE_SIZE:

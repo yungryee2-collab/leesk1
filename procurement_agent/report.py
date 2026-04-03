@@ -54,8 +54,10 @@ def generate_report(results: dict[str, list[dict]], run_date: str | None = None)
             reason = bid.get("_reason") or ""
             bid_id = bid.get("bid_id") or ""
             url = bid.get("url") or ""
+            source = bid.get("source") or ""
 
-            lines += [f"### {i}. {title}"]
+            source_badge = f" `{source}`" if source else ""
+            lines += [f"### {i}. {title}{source_badge}"]
 
             meta_parts = []
             if org:
