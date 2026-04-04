@@ -63,7 +63,7 @@ API_ENDPOINTS = [
         "source": "나라장터(공공)",
         "date_start": "inqryBgnDt",
         "date_end": "inqryEndDt",
-        "date_fmt": "12",   # YYYYMMDDHHmm
+        "date_fmt": "8",    # YYYYMMDD
         "extra": {"inqryDiv": "1"},
     },
     {
@@ -79,7 +79,9 @@ API_ENDPOINTS = [
 # ─── 1. 입찰 수집 ─────────────────────────────────────────────
 def fetch_bids():
     days  = CONFIG["DAYS_BACK"]
-    # 나라장터: YYYYMMDDHHmm (12자리), 누리장터: YYYYMMDDHHmmss (14자리)
+    # 날짜 포맷: 8자리(YYYYMMDD), 12자리(YYYYMMDDHHmm), 14자리(YYYYMMDDHHmmss)
+    start_8  = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+    end_8    = datetime.now().strftime("%Y%m%d")
     start_12 = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M")
     end_12   = datetime.now().strftime("%Y%m%d%H%M")
     start_14 = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M%S")
@@ -89,8 +91,12 @@ def fetch_bids():
     for ep in API_ENDPOINTS:
         url    = ep["url"]
         source = ep["source"]
-        ds = start_12 if ep["date_fmt"] == "12" else start_14
-        de = end_12   if ep["date_fmt"] == "12" else end_14
+        if ep["date_fmt"] == "8":
+            ds, de = start_8, end_8
+        elif ep["date_fmt"] == "12":
+            ds, de = start_12, end_12
+        else:
+            ds, de = start_14, end_14
         params = {
             "serviceKey": CONFIG["PROCUREMENT_API_KEY"],
             "numOfRows": "100", "pageNo": "1", "type": "json",
@@ -100,6 +106,7 @@ def fetch_bids():
         params.update(ep["extra"])
 
         print(f"[수집] {url.split('/')[-1]} ...")
+        print(f"  날짜범위: {ds} ~ {de}")
         for page in range(1, 21):
             params["pageNo"] = str(page)
             try:
@@ -107,6 +114,11 @@ def fetch_bids():
                 r.raise_for_status()
             except Exception as e:
                 print(f"  오류: {e}"); break
+
+            # 디버그: 첫 페이지 응답 앞부분 출력
+            if page == 1:
+                preview = r.text[:300].replace("\n", " ")
+                print(f"  응답 미리보기: {preview}")
 
             items = []
             if r.text.strip().startswith("<"):
