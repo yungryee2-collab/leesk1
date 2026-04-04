@@ -57,9 +57,21 @@ DOMAINS = {
     },
 }
 
-API_URLS = [
-    "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc",
-    "https://apis.data.go.kr/1230000/ao/PrvtBidNtceService/getPrvtBidNtceList",
+API_ENDPOINTS = [
+    {
+        "url": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc",
+        "source": "나라장터(공공)",
+        "date_start": "inqryBgnDt",
+        "date_end": "inqryEndDt",
+        "extra": {"inqryDiv": "1"},
+    },
+    {
+        "url": "https://apis.data.go.kr/1230000/ao/PrvtBidNtceService/getPrvtBidNtceSrchList",
+        "source": "누리장터(민간)",
+        "date_start": "prvtBidNtceBgnDt",
+        "date_end": "prvtBidNtceEndDt",
+        "extra": {},
+    },
 ]
 
 # ─── 1. 입찰 수집 ─────────────────────────────────────────────
@@ -69,17 +81,16 @@ def fetch_bids():
     end   = datetime.now().strftime("%Y%m%d%H%M%S")
     all_bids, seen = [], set()
 
-    for url in API_URLS:
-        is_prvt = "PrvtBidNtce" in url
-        source  = "누리장터(민간)" if is_prvt else "나라장터(공공)"
-        params  = {
+    for ep in API_ENDPOINTS:
+        url    = ep["url"]
+        source = ep["source"]
+        params = {
             "serviceKey": CONFIG["PROCUREMENT_API_KEY"],
             "numOfRows": "100", "pageNo": "1", "type": "json",
-            ("prvtBidNtceBgnDt" if is_prvt else "inqryBgnDt"): start,
-            ("prvtBidNtceEndDt" if is_prvt else "inqryEndDt"): end,
+            ep["date_start"]: start,
+            ep["date_end"]:   end,
         }
-        if not is_prvt:
-            params["inqryDiv"] = "1"
+        params.update(ep["extra"])
 
         print(f"[수집] {url.split('/')[-1]} ...")
         for page in range(1, 21):
@@ -98,6 +109,11 @@ def fetch_bids():
             else:
                 try:
                     d = r.json()
+                    # 응답 코드 확인
+                    code = (d.get("response", {}) or {}).get("header", {}).get("resultCode", "")
+                    if code and code != "00":
+                        msg = (d.get("response", {}) or {}).get("header", {}).get("resultMsg", "")
+                        print(f"  API 오류 코드 {code}: {msg}"); break
                     for k in ("response", "body"):
                         if k in d: d = d[k]
                     if "items" in d:
@@ -110,6 +126,7 @@ def fetch_bids():
             if not items: break
             for raw in items:
                 raw["_source"] = source
+                raw["_url_base"] = url
                 bid = _norm(raw)
                 uid = bid.get("bid_id") or str(raw)
                 if uid not in seen:
