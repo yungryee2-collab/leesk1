@@ -63,6 +63,7 @@ API_ENDPOINTS = [
         "source": "나라장터(공공)",
         "date_start": "inqryBgnDt",
         "date_end": "inqryEndDt",
+        "date_fmt": "12",   # YYYYMMDDHHmm
         "extra": {"inqryDiv": "1"},
     },
     {
@@ -70,6 +71,7 @@ API_ENDPOINTS = [
         "source": "누리장터(민간)",
         "date_start": "prvtBidNtceBgnDt",
         "date_end": "prvtBidNtceEndDt",
+        "date_fmt": "14",   # YYYYMMDDHHmmss
         "extra": {},
     },
 ]
@@ -77,18 +79,23 @@ API_ENDPOINTS = [
 # ─── 1. 입찰 수집 ─────────────────────────────────────────────
 def fetch_bids():
     days  = CONFIG["DAYS_BACK"]
-    start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M%S")
-    end   = datetime.now().strftime("%Y%m%d%H%M%S")
+    # 나라장터: YYYYMMDDHHmm (12자리), 누리장터: YYYYMMDDHHmmss (14자리)
+    start_12 = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M")
+    end_12   = datetime.now().strftime("%Y%m%d%H%M")
+    start_14 = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M%S")
+    end_14   = datetime.now().strftime("%Y%m%d%H%M%S")
     all_bids, seen = [], set()
 
     for ep in API_ENDPOINTS:
         url    = ep["url"]
         source = ep["source"]
+        ds = start_12 if ep["date_fmt"] == "12" else start_14
+        de = end_12   if ep["date_fmt"] == "12" else end_14
         params = {
             "serviceKey": CONFIG["PROCUREMENT_API_KEY"],
             "numOfRows": "100", "pageNo": "1", "type": "json",
-            ep["date_start"]: start,
-            ep["date_end"]:   end,
+            ep["date_start"]: ds,
+            ep["date_end"]:   de,
         }
         params.update(ep["extra"])
 
