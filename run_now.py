@@ -59,12 +59,13 @@ DOMAINS = {
 
 API_ENDPOINTS = [
     {
-        "url": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServc",
+        # 나라장터 용역 - 공고게시일시 범위 검색 (PPSSrch = PPS Search)
+        "url": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcPPSSrch",
         "source": "나라장터(공공)",
-        "date_start": "inqryBgnDt",
-        "date_end": "inqryEndDt",
-        "date_fmt": "8",    # YYYYMMDD
-        "extra": {"inqryDiv": "1"},
+        "date_start": "bidNtceBgnDt",
+        "date_end": "bidNtceEndDt",
+        "date_fmt": "14",   # YYYYMMDDHHmmss
+        "extra": {},
     },
     {
         "url": "https://apis.data.go.kr/1230000/ao/PrvtBidNtceService/getPrvtBidNtceSrchList",
@@ -97,6 +98,7 @@ def fetch_bids():
             ds, de = start_12, end_12
         else:
             ds, de = start_14, end_14
+
         params = {
             "serviceKey": CONFIG["PROCUREMENT_API_KEY"],
             "numOfRows": "100", "pageNo": "1", "type": "json",
