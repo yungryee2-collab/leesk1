@@ -59,20 +59,21 @@ DOMAINS = {
 
 API_ENDPOINTS = [
     {
-        # 나라장터 용역 - 공고게시일시 범위 검색 (PPSSrch = PPS Search)
+        # 나라장터 용역 - 공고게시일시 범위 검색
         "url": "https://apis.data.go.kr/1230000/ad/BidPublicInfoService/getBidPblancListInfoServcPPSSrch",
         "source": "나라장터(공공)",
         "date_start": "bidNtceBgnDt",
         "date_end": "bidNtceEndDt",
-        "date_fmt": "14",   # YYYYMMDDHHmmss
+        "date_fmt": "14",
         "extra": {},
     },
     {
-        "url": "https://apis.data.go.kr/1230000/ao/PrvtBidNtceService/getPrvtBidNtceSrchList",
+        # 누리장터 민간 용역 - 공고일시 범위 검색
+        "url": "https://apis.data.go.kr/1230000/ao/PrvtBidNtceService/getPrvtBidPblancListInfoServcPPSSrch",
         "source": "누리장터(민간)",
-        "date_start": "prvtBidNtceBgnDt",
-        "date_end": "prvtBidNtceEndDt",
-        "date_fmt": "14",   # YYYYMMDDHHmmss
+        "date_start": "bidNtceBgnDt",
+        "date_end": "bidNtceEndDt",
+        "date_fmt": "14",
         "extra": {},
     },
 ]
