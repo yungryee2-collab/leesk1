@@ -78,38 +78,26 @@ API_ENDPOINTS = [
     },
 ]
 
-# ─── 1. 입찰 수집 ─────────────────────────────────────────────
+# --- 1. 입찰 수집 ---
 def fetch_bids():
     days  = CONFIG["DAYS_BACK"]
-    # 날짜 포맷: 8자리(YYYYMMDD), 12자리(YYYYMMDDHHmm), 14자리(YYYYMMDDHHmmss)
-    start_8  = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
-    end_8    = datetime.now().strftime("%Y%m%d")
-    start_12 = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M")
-    end_12   = datetime.now().strftime("%Y%m%d%H%M")
-    start_14 = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M%S")
-    end_14   = datetime.now().strftime("%Y%m%d%H%M%S")
+    start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d%H%M%S")
+    end   = datetime.now().strftime("%Y%m%d%H%M%S")
     all_bids, seen = [], set()
 
     for ep in API_ENDPOINTS:
         url    = ep["url"]
         source = ep["source"]
-        if ep["date_fmt"] == "8":
-            ds, de = start_8, end_8
-        elif ep["date_fmt"] == "12":
-            ds, de = start_12, end_12
-        else:
-            ds, de = start_14, end_14
-
         params = {
             "serviceKey": CONFIG["PROCUREMENT_API_KEY"],
             "numOfRows": "100", "pageNo": "1", "type": "json",
-            ep["date_start"]: ds,
-            ep["date_end"]:   de,
+            ep["date_start"]: start,
+            ep["date_end"]:   end,
         }
         params.update(ep["extra"])
 
         print(f"[수집] {url.split('/')[-1]} ...")
-        print(f"  날짜범위: {ds} ~ {de}")
+        print(f"  날짜범위: {start} ~ {end}")
         for page in range(1, 21):
             params["pageNo"] = str(page)
             try:
@@ -118,7 +106,6 @@ def fetch_bids():
             except Exception as e:
                 print(f"  오류: {e}"); break
 
-            # 디버그: 첫 페이지 응답 앞부분 출력
             if page == 1:
                 preview = r.text[:300].replace("\n", " ")
                 print(f"  응답 미리보기: {preview}")
@@ -131,7 +118,6 @@ def fetch_bids():
             else:
                 try:
                     d = r.json()
-                    # 응답 코드 확인
                     code = (d.get("response", {}) or {}).get("header", {}).get("resultCode", "")
                     if code and code != "00":
                         msg = (d.get("response", {}) or {}).get("header", {}).get("resultMsg", "")
@@ -148,14 +134,13 @@ def fetch_bids():
             if not items: break
             for raw in items:
                 raw["_source"] = source
-                raw["_url_base"] = url
                 bid = _norm(raw)
                 uid = bid.get("bid_id") or str(raw)
                 if uid not in seen:
                     seen.add(uid); all_bids.append(bid)
             if len(items) < 100: break
 
-        print(f"  → 누적 {len(all_bids)}건")
+        print(f"  -> 누적 {len(all_bids)}건")
     return all_bids
 
 
@@ -179,7 +164,7 @@ def _norm(raw):
     return out
 
 
-# ─── 2. Claude 분류 ────────────────────────────────────────────
+# --- 2. Claude 분류 ---
 def analyze(bids):
     client  = anthropic.Anthropic(api_key=CONFIG["ANTHROPIC_API_KEY"])
     results = {}
@@ -190,7 +175,7 @@ def analyze(bids):
             if any(k.lower() in txt for k in cfg["keywords"]):
                 cands.append(b)
 
-        print(f"[분류] {cfg['label']}: 키워드 {len(cands)}건 → Claude 판단 중...")
+        print(f"[분류] {cfg['label']}: 키워드 {len(cands)}건 -> Claude 판단 중...")
         relevant = []
         for i in range(0, len(cands), 20):
             batch    = cands[i:i+20]
@@ -206,7 +191,7 @@ def analyze(bids):
                     messages=[{"role":"user","content":
                         f"다음 입찰공고들이 아래 기준에 해당하는지 판단하세요.\n"
                         f"기준: {cfg['prompt']}\n\n{bid_json}\n\n"
-                        "JSON 배열로만 응답: [{\"index\":숫자,\"relevant\":true/false,\"reason\":\"한줄\"}]"}])
+                        "{\"index\":숫자,\"relevant\":true/false,\"reason\":\"한줄\"}] 형식 JSON 배열로만 응답"}])
                 text = next((b.text for b in res.content if b.type == "text"), "")
                 if "```" in text:
                     text = text.split("```")[1]
@@ -220,11 +205,11 @@ def analyze(bids):
                 relevant.extend(cands[i:i+20])
 
         results[domain] = relevant
-        print(f"  → 최종 {len(relevant)}건 선별")
+        print(f"  -> 최종 {len(relevant)}건 선별")
     return results
 
 
-# ─── 3. HTML 이메일 생성 ───────────────────────────────────────
+# --- 3. HTML 이메일 생성 ---
 def build_html(results):
     total = sum(len(v) for v in results.values())
     now   = datetime.now().strftime("%Y년 %m월 %d일 %H:%M")
@@ -297,7 +282,7 @@ def build_html(results):
 </div></body></html>"""
 
 
-# ─── 4. 이메일 발송 ────────────────────────────────────────────
+# --- 4. 이메일 발송 ---
 def send(results):
     total   = sum(len(v) for v in results.values())
     subject = (f"[입찰모니터링] {datetime.now().strftime('%Y.%m.%d')} "
@@ -319,7 +304,7 @@ def send(results):
         print(f"[오류] 발송 실패: {e}")
 
 
-# ─── 실행 ─────────────────────────────────────────────────────
+# --- 실행 ---
 if __name__ == "__main__":
     print("=" * 55)
     print("  정부조달 입찰 모니터링 에이전트")
