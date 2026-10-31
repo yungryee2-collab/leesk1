@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>수출통제 사전검증</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,6 +50,39 @@ header.top p{margin:4px 0 0;color:var(--muted);max-width:68ch}
 .principle{background:var(--accent-soft);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;font-size:.9rem;display:flex;gap:10px 16px;flex-wrap:wrap;align-items:baseline}
 .principle b{color:var(--accent);white-space:nowrap}
 .principle span{flex:1 1 40ch;min-width:0}
+.disclaimer{border:1px solid var(--crit);border-radius:var(--r);padding:10px 16px;font-size:.88rem;display:flex;gap:10px 16px;flex-wrap:wrap;align-items:baseline;background:var(--surface)}
+.disclaimer b{color:var(--crit);white-space:nowrap}
+.disclaimer span{flex:1 1 40ch;min-width:0}
+.datastrip{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted);align-items:center}
+.datastrip .src{display:inline-flex;gap:6px;align-items:center}
+.datastrip .src i{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block}
+.datastrip .src.on i{background:var(--ok)}
+.datastrip .src.off i{background:var(--warn)}
+.matches{display:grid;gap:8px;margin-top:6px}
+.match{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:grid;gap:4px;font-size:.86rem;background:var(--bg)}
+.match .mh{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.match .sc{font-family:var(--f-mono);font-size:.76rem;color:var(--muted)}
+.match .meta{color:var(--muted);font-size:.8rem}
+.screen-head{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:.86rem}
+.parties .btn{padding:5px 10px;font-size:.8rem;white-space:nowrap}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.8rem;padding:2px 9px;border-radius:999px;background:var(--sunk);border:1px solid var(--line)}
+.chip.hit{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.chip.x{background:var(--crit-soft);color:var(--crit);border-color:transparent;font-family:var(--f-mono)}
+.chip.o{font-family:var(--f-mono)}
+.fr{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.fr li{font-size:.86rem;display:grid;gap:2px}
+.fr .meta{font-size:.76rem;color:var(--muted);font-family:var(--f-mono)}
+.fr a{color:var(--accent)}
+.sec{border-top:1px solid var(--line);padding-top:8px}
+.sec summary{cursor:pointer;font-size:.88rem;font-weight:500}
+.sec pre{white-space:pre-wrap;font-family:var(--f-body);font-size:.84rem;margin:8px 0 0;max-height:420px;overflow:auto;background:var(--bg);padding:10px;border-radius:var(--r)}
+.sec mark{background:var(--warn-soft);color:var(--ink)}
+.dtable{overflow-x:auto}
+.dtable table{border-collapse:collapse;font-size:.84rem;min-width:100%}
+.dtable td,.dtable th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.dtable th{font-size:.74rem;color:var(--muted);font-weight:600}
 .sample{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:8px 14px;font-size:.88rem;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .sample .btn{font-size:.82rem;padding:4px 10px}
 
@@ -155,6 +189,8 @@ footer{color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);paddi
   </header>
 
   <div class="principle"><b>사용 원칙</b><span>이 도구는 판단을 대신하지 않고, 판단 과정을 빠짐없이 짚어 근거를 남깁니다. 법적 효력이 있는 최종 판정은 BIS 공식 품목분류(CCATS)·허가, 산업통상자원부·전략물자관리원·원자력안전위원회의 판정, 그리고 변호사 의견서의 몫입니다.</span></div>
+  <div class="disclaimer" role="note"><b>면책 고지</b><span>이 도구의 판단 결과와 연결된 규정·명단 데이터는 <strong>참고 목적</strong>으로만 제공되며 법률 자문이 아닙니다. 데이터는 수집 시점 기준이고 오류나 누락이 있을 수 있습니다. 구체적인 수출 거래는 반드시 <strong>변호사의 검토</strong>를 받으십시오.</span></div>
+  <div class="datastrip" id="datastrip"></div>
 
   <div class="sample" id="sample-bar" hidden>
     <span>지금 보이는 내용은 <b>예시 거래</b>입니다. 실제 건을 검토하려면 새 검토를 시작하세요.</span>
@@ -373,8 +409,92 @@ const STEPS=[
  {id:"x7",type:"yn",label:"미국·한국 허가 소요기간이 Financial Close, EPC 발효, COD 일정과 대주단 인출 선행조건에 반영되어 있는가?",cite:"PF 일정 관리",
   eval:v=>v==="n"?[f("warn","허가 지연은 Financial Close 지연, EPC 발효·착공 지연, PPA 지체상금으로 이어집니다. 허가 일정을 사업 일정과 선행조건에 반영하십시오.")]:[]}
 ]},
-{id:"s8",title:"판단 기록",lead:"",items:[]}
+{id:"s9",title:"규정·명단 데이터",lead:"",items:[],view:true},
+{id:"s8",title:"판단 기록",lead:"",items:[],view:true}
 ];
+
+/* ---------- 연결 데이터 (eCFR · CSL · Federal Register) ---------- */
+const EN={"체코":["Czech Republic","Czechia"],"폴란드":["Poland"],"루마니아":["Romania"],"네덜란드":["Netherlands"],"영국":["United Kingdom"],"미국":["United States"],"UAE":["United Arab Emirates"],"사우디아라비아":["Saudi Arabia"],"튀르키예":["Turkey","Türkiye","Turkiye"],"이집트":["Egypt"],"베트남":["Vietnam"],"인도네시아":["Indonesia"],"필리핀":["Philippines"],"카자흐스탄":["Kazakhstan"],"우즈베키스탄":["Uzbekistan"],"아르메니아":["Armenia"],"키르기스스탄":["Kyrgyzstan","Kyrgyz Republic"],"인도":["India"],"중국":["China"],"러시아":["Russia"],"벨라루스":["Belarus"],"이란":["Iran"],"북한":["Korea, North","North Korea"],"시리아":["Syria"],"쿠바":["Cuba"]};
+const DATA={status:"loading",manifest:null,regs:null,fr:null,screening:null,screenLoading:false,index:null};
+const nrm=s=>String(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+function enNames(){const d=S.a.dest;if(d==="기타")return S.a.destOther?[S.a.destOther]:[];return EN[d]||[]}
+function countryMatch(cell){const c=nrm(cell);return enNames().some(n=>{const m=nrm(n);return c===m||c.startsWith(m+" ")})}
+async function loadJSON(p){const r=await fetch(p,{cache:"no-cache"});if(!r.ok)throw new Error(r.status);return r.json()}
+async function loadData(){
+  try{
+    DATA.manifest=await loadJSON("data/manifest.json");
+    const [regs,fr]=await Promise.all([loadJSON("data/regs.json").catch(()=>null),loadJSON("data/fr_updates.json").catch(()=>null)]);
+    DATA.regs=regs;DATA.fr=fr;DATA.status="ok";
+  }catch(e){DATA.status="none"}
+  refresh(S.step==="s9");
+}
+async function ensureScreening(){
+  if(DATA.screening||DATA.screenLoading) return;
+  DATA.screenLoading=true;
+  try{DATA.screening=await loadJSON("data/screening.json")}catch(e){DATA.screening=[]}
+  DATA.screenLoading=false;
+}
+const STOP=new Set("co ltd llc inc corp corporation company limited jsc ojsc pjsc cjsc ooo ao zao gmbh ag sa s r o sro bv nv plc the of and llp pte pvt group holding holdings co.,ltd".split(" "));
+const toks=s=>nrm(s).split(" ").filter(t=>t&&!STOP.has(t));
+function buildIndex(){
+  DATA.index=DATA.screening.map((e,i)=>({i,names:[e.n,...(e.a||[])].map(n=>({n,t:new Set(toks(n)),j:toks(n).join(" ")}))}));
+}
+function screenName(q){
+  if(!DATA.index) buildIndex();
+  const tq=toks(q),jq=tq.join(" ");if(!tq.length) return [];
+  const res=[];
+  for(const e of DATA.index){
+    let best=0,via="";
+    for(const nm of e.names){
+      if(!nm.t.size) continue;
+      let inter=0;tq.forEach(t=>{if(nm.t.has(t))inter++});
+      if(!inter) continue;
+      const uni=new Set([...tq,...nm.t]).size;
+      let sc=nm.j===jq?1:0.7*inter/tq.length+0.3*inter/uni;
+      if(sc>best){best=sc;via=nm.n}
+    }
+    if(best>=0.5) res.push({e:DATA.screening[e.i],sc:best,via});
+  }
+  return res.sort((a,b)=>b.sc-a.sc).slice(0,12);
+}
+let SCREEN_RES=null;
+function chartFor(){
+  const ch=DATA.regs&&DATA.regs.countryChart; if(!ch||!enNames().length) return null;
+  const leaves=(ch.headers||[]).map(h=>h.replace(/\s+/g," ").trim()).filter(h=>/^[A-Z]{2,3} ?\d?$/.test(h));
+  const row=(ch.rows||[]).find(r=>countryMatch(r[0])); if(!row) return {found:false};
+  if(row.length-1!==leaves.length) return {found:true,aligned:false,row};
+  const cols={};leaves.forEach((h,i)=>cols[h.replace(" ","")]=/x/i.test(row[i+1]||""));
+  return {found:true,aligned:true,row,cols};
+}
+function app810(){const a=DATA.regs&&DATA.regs.app810A;if(!a||!a.countries||!a.countries.length||!enNames().length)return null;return {listed:a.countries.some(countryMatch),a}}
+function dataFindings(){
+  const out=[];if(DATA.status!=="ok") return out;
+  const s1=STEPS[1],s3=STEPS[4],asOf=k=>((DATA.manifest.sources||{}).ecfr||{}).asOf?.[k]||"";
+  const ap=app810();
+  if(ap&&S.a.j2==="y"){
+    out.push({step:s1,it:{cite:`eCFR 10 CFR 810 App. A (${asOf("10CFR810")})`},sev:"info",msg:`연결 데이터상 ${destOf(S)}은(는) Part 810 부록 A에 ${ap.listed?"등재되어 있습니다":"등재되어 있지 않습니다"}. 원문으로 확인하십시오.`});
+    if((S.a.j2b==="y"&&!ap.listed)||(S.a.j2b==="n"&&ap.listed)) out.push({step:s1,it:{cite:"10 CFR 810 App. A"},sev:"warn",msg:"부록 A 등재 여부에 대한 답변이 연결 데이터와 다릅니다. 원문을 다시 확인하십시오."});
+  }
+  const ch=chartFor(),rs=(S.a.reasons||[]).filter(r=>r!=="기타");
+  if(ch&&ch.aligned&&rs.length){
+    const hit=rs.filter(r=>ch.cols[r]);
+    out.push({step:s3,it:{cite:`eCFR Supp.1 to Part 738 (${asOf("15CFR738")})`},sev:"info",msg:`연결 데이터상 국가표에서 ${destOf(S)}의 ${rs.join("·")} 칸: ${hit.length?hit.join("·")+"에 X 표시(허가 필요)":"X 표시 없음"}.`});
+    if(S.a.l1==="n"&&hit.length) out.push({step:s3,it:{cite:"Supp.1 to Part 738"},sev:"warn",msg:"국가표 X 표시 여부에 대한 답변이 연결 데이터와 다릅니다. 원문을 다시 확인하십시오."});
+  }
+  if(Array.isArray(DATA.fr)){
+    const cut=Date.now()-30*864e5,recent=DATA.fr.filter(d=>d.date&&new Date(d.date).getTime()>cut);
+    if(recent.length) out.push({step:STEPS.find(s=>s.id==="s9"),it:{cite:"Federal Register"},sev:"open",msg:`최근 30일 안에 관련 Part의 개정 고시가 ${recent.length}건 있습니다. '규정·명단 데이터' 단계에서 확인하십시오.`});
+  }
+  return out;
+}
+function dataStrip(){
+  const el=$("#datastrip");if(!el)return;
+  if(DATA.status==="loading"){el.innerHTML=`<span>연결 데이터 확인 중…</span>`;return}
+  if(DATA.status!=="ok"){el.innerHTML=`<span class="src off"><i></i>공식 데이터 미연결 — 문항 판단은 사용자가 원문과 대조해 입력합니다.</span>`;return}
+  const s=DATA.manifest.sources||{};
+  el.innerHTML=`<span>연결 데이터 (수집 ${esc((DATA.manifest.fetchedAt||"").slice(0,10))})</span>`+
+   [["ecfr","eCFR 10 CFR 110·810 / EAR"],["csl","통합 제재명단(BIS·OFAC·State)"],["fr","Federal Register 개정 고시"]].map(([k,l])=>`<span class="src ${s[k]?"on":"off"}"><i></i>${l}${s[k]&&s[k].count?` · ${Number(s[k].count).toLocaleString()}건`:""}</span>`).join("");
+}
 
 const SAMPLE={step:"s0",a:{
  name:"[예시] 중유럽 원전 프로젝트 1차측 밸브·제어 패키지 수출",
@@ -432,7 +552,7 @@ function evalAll(){
   const a=S.a,d=deMinimis(S),s1=STEPS[1];
   if(a.j3==="n"&&a.j2==="n"&&a.j1==="n"&&a.j4==="n"&&(!d||!d.over)&&a.j7!=="y")
     out.push({step:s1,it:{cite:"자료집 8.1 STEP 4"},sev:"info",msg:"DOE·NRC·EAR 어느 규정에도 해당하지 않는다는 판단입니다. 판단 과정을 '비관할(No-Jurisdiction) 메모'로 남기십시오. OFAC 명단과 §744.2 핵 최종용도 확인은 별도로 필요합니다."});
-  return out;
+  return out.concat(dataFindings());
 }
 function counts(F){const c={crit:0,warn:0,open:0,info:0};F.forEach(x=>c[x.sev]++);return c}
 function progress(st){
@@ -460,8 +580,8 @@ function renderRail(F){
   $("#rail").innerHTML=STEPS.map((st,i)=>{
     const p=progress(st);
     return `<button type="button" data-step="${st.id}" ${S.step===st.id?'aria-current="step"':""}>
-      <span class="no">${String(i+1).padStart(2,"0")}</span><span class="nm">${st.title}</span>${st.id==="s8"?"":`<span class="dot ${stepDot(st,F)}"></span>`}
-      ${st.id==="s8"?"":`<span class="prog">${p.done}/${p.total} 답변</span>`}</button>`}).join("");
+      <span class="no">${String(i+1).padStart(2,"0")}</span><span class="nm">${st.title}</span>${st.view?"":`<span class="dot ${stepDot(st,F)}"></span>`}
+      ${st.view?(st.id==="s9"?`<span class="prog">${DATA.status==="ok"?"연결됨":"미연결"}</span>`:""):`<span class="prog">${p.done}/${p.total} 답변</span>`}</button>`}).join("");
 }
 function renderAside(F){
   const v=verdict(F),c=counts(F);
@@ -484,11 +604,52 @@ function field(it){
   if(it.type==="yn") ctl=`<div class="seg" role="group" aria-label="${esc(it.label)}" id="${id}">${YN.map(([k,l])=>`<button type="button" data-yn="${it.id}" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join("")}</div>`;
   if(it.type==="checks") ctl=`<div class="checks" id="${id}">${it.options.map(o=>`<label><input type="checkbox" data-chk="${it.id}" value="${esc(o)}" ${(v||[]).includes(o)?"checked":""}><span class="mono">${esc(o)}</span></label>`).join("")}</div>`;
   if(it.type==="redflags") ctl=`<div class="checks long" id="${id}">${REDFLAGS.map((o,i)=>`<label><input type="checkbox" data-rf="${i}" ${(v||[]).includes(i)?"checked":""}><span>${esc(o)}</span></label>`).join("")}</div>`;
-  if(it.type==="parties") ctl=`<div class="parties"><table><thead><tr><th>역할</th><th>상호</th><th>조회 결과</th><th>조회일</th></tr></thead><tbody>${ROLES.map((r,i)=>{const p=(S.a.parties||[])[i]||{};return `<tr><td>${r}</td><td><input type="text" id="p-${i}-name" data-p="${i}" data-pf="name" value="${esc(p.name)}" placeholder="상호"></td><td><select id="p-${i}-status" data-p="${i}" data-pf="status">${SCREEN.map(o=>`<option value="${o}" ${o===p.status?"selected":""}>${o||"선택"}</option>`).join("")}</select></td><td><input type="date" id="p-${i}-date" data-p="${i}" data-pf="date" value="${esc(p.date)}"></td></tr>`}).join("")}</tbody></table></div>`;
+  if(it.type==="parties"){
+    const can=DATA.status==="ok"&&DATA.manifest.sources&&DATA.manifest.sources.csl;
+    ctl=`<div class="parties"><table><thead><tr><th>역할</th><th>상호 (영문 전체)</th><th>조회 결과</th><th>조회일</th><th>명단 대조</th></tr></thead><tbody>${ROLES.map((r,i)=>{const p=(S.a.parties||[])[i]||{};return `<tr><td>${r}</td><td><input type="text" id="p-${i}-name" data-p="${i}" data-pf="name" value="${esc(p.name)}" placeholder="상호"></td><td><select id="p-${i}-status" data-p="${i}" data-pf="status">${SCREEN.map(o=>`<option value="${o}" ${o===p.status?"selected":""}>${o||"선택"}</option>`).join("")}</select></td><td><input type="date" id="p-${i}-date" data-p="${i}" data-pf="date" value="${esc(p.date)}"></td><td><button type="button" class="btn" data-screen="${i}" ${can?"":"disabled title=\"통합 제재명단 데이터가 연결되지 않았습니다\""}>명단 대조</button></td></tr>`}).join("")}</tbody></table></div><div id="screen-out">${screenOut()}</div>`;
+  }
   if(it.type==="calc") return `<div class="item"><div class="calc" id="calc">${calcText()}</div></div>`;
   const label=["yn","checks","redflags","parties"].includes(it.type)?`<span class="lbl">${esc(it.label)}</span>`:`<label for="${id}">${esc(it.label)}</label>`;
   const note=["calc"].includes(it.type)?"":`<input type="text" class="note" id="n-${it.id}" data-n="${it.id}" value="${esc(S.n[it.id]||"")}" placeholder="근거·메모 (자료명, 조문, 확인자, 일자)">`;
   return `<div class="item"><div class="q">${label}${it.cite?`<span class="cite">${esc(it.cite)}</span>`:""}</div>${it.help?`<p class="help">${esc(it.help)}</p>`:""}${ctl}${note}</div>`;
+}
+function screenOut(){
+  if(!SCREEN_RES) return "";
+  const {i,name,loading,matches}=SCREEN_RES,role=ROLES[i],asOf=((DATA.manifest||{}).sources||{}).csl?.asOf||"";
+  if(loading) return `<p class="help">통합 제재명단을 불러오는 중입니다…</p>`;
+  return `<div class="matches"><div class="screen-head"><span><b>${esc(role)}</b> "${esc(name)}" 대조 결과: 후보 ${matches.length}건 (명단 기준일 ${esc(asOf)})</span>
+   <span class="actions"><button type="button" class="btn" data-mark="${i}|잠재 일치(확인 중)">잠재 일치로 기록</button><button type="button" class="btn" data-mark="${i}|일치 없음">일치 없음으로 기록</button></span></div>
+   <p class="help">이름 유사도로 찾은 후보입니다. 주소, 국가, 식별정보를 대조해 일치 여부를 담당자가 확정하고, 최종 판단은 변호사 검토를 받으십시오. 50% 지분 관계사는 이름 대조로 잡히지 않습니다.</p>
+   ${matches.map(m=>`<div class="match"><div class="mh"><b>${esc(m.e.n)}</b><span class="sc">유사도 ${(m.sc*100).toFixed(0)}%</span></div>
+     <div class="meta">${esc(m.e.s)}${m.e.c&&m.e.c.length?` · ${esc(m.e.c.join(", "))}`:""}${m.e.p&&m.e.p.length?` · ${esc(m.e.p.join(", "))}`:""}</div>
+     ${m.via!==m.e.n?`<div class="meta">일치한 별칭: ${esc(m.via)}</div>`:""}
+     ${m.e.lr||m.e.lp?`<div class="meta">허가요건: ${esc(m.e.lr||"-")} / 심사방침: ${esc(m.e.lp||"-")}</div>`:""}
+     ${m.e.fr?`<div class="meta">Federal Register: ${esc(m.e.fr)}${m.e.d?` (${esc(m.e.d)})`:""}</div>`:""}
+     ${m.e.u?`<a class="meta" href="${esc(m.e.u)}" target="_blank" rel="noopener">원 명단 보기</a>`:""}</div>`).join("")}</div>`;
+}
+let REGQ="";
+function regView(){
+  if(DATA.status!=="ok") return `<div class="item"><p class="help">공식 데이터가 아직 연결되지 않았습니다. 데이터가 연결되면 이 단계에서 Part 810 부록 A, 국가표, 최근 개정 고시, 규정 원문 검색을 볼 수 있습니다. 그 전에는 아래 링크로 원문을 직접 확인하십시오.</p>
+   <ul class="refs"><li><a href="https://www.ecfr.gov/current/title-10/chapter-III/part-810" target="_blank" rel="noopener">10 CFR Part 810</a></li><li><a href="https://www.ecfr.gov/current/title-10/chapter-I/part-110" target="_blank" rel="noopener">10 CFR Part 110</a></li><li><a href="https://www.ecfr.gov/current/title-15/subtitle-B/chapter-VII/subchapter-C" target="_blank" rel="noopener">EAR (15 CFR 730–774)</a></li><li><a href="https://www.trade.gov/data-visualization/csl-search" target="_blank" rel="noopener">Consolidated Screening List</a></li></ul></div>`;
+  const m=DATA.manifest,s=m.sources||{},R=DATA.regs||{};
+  const rows=Object.entries(s).map(([k,v])=>`<tr><td>${esc(v.label)}</td><td class="mono">${esc(typeof v.asOf==="object"?Object.entries(v.asOf).map(([a,b])=>a+" "+b).join(", "):v.asOf)}</td><td class="mono">${v.count!=null?Number(v.count).toLocaleString()+"건":""}</td></tr>`).join("");
+  const ap=R.app810A,ch=chartFor();
+  const parts=(R.parts||[]).map(p=>`<tr><td>${esc(p.label)}</td><td class="mono">${esc(p.asOf)}</td><td class="mono">${esc((p.recentAmendments||[]).slice(-3).join(", "))}</td><td><a href="${esc(p.url)}" target="_blank" rel="noopener">원문</a></td></tr>`).join("");
+  return `
+  <div class="item"><h3>데이터 출처와 기준일</h3><div class="dtable"><table><thead><tr><th>출처</th><th>기준일</th><th>건수</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="dtable"><table><thead><tr><th>규정</th><th>eCFR 기준일</th><th>최근 개정일</th><th></th></tr></thead><tbody>${parts}</tbody></table></div></div>
+  <div class="item"><h3>최근 개정 고시 (Federal Register)</h3>${Array.isArray(DATA.fr)&&DATA.fr.length?`<ul class="fr">${DATA.fr.slice(0,15).map(d=>`<li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a><span class="meta">${esc(d.date)} · ${esc(d.type||"")} · ${esc(d.cfr)}${d.effective?` · 시행 ${esc(d.effective)}`:""}</span></li>`).join("")}</ul>`:`<p class="help">수집된 고시가 없습니다.</p>`}</div>
+  <div class="item"><h3>Part 810 부록 A — 일반허가 대상국</h3>${ap&&ap.countries&&ap.countries.length?`<p class="help">${enNames().length?`목적국(${esc(destOf(S))})은 강조 표시됩니다.`:"거래 개요에서 목적국을 고르면 강조 표시됩니다."} 자동 추출 목록이므로 원문과 대조하십시오.</p><div class="chips">${ap.countries.map(c=>`<span class="chip ${countryMatch(c)?"hit":""}">${esc(c)}</span>`).join("")}</div>`:`<p class="help">부록 A 목록을 자동 추출하지 못했습니다. 원문을 확인하십시오.</p>`}</div>
+  <div class="item"><h3>국가표 (Supp.1 to Part 738) — ${esc(destOf(S)||"목적국 미선택")}</h3>${!ch?`<p class="help">목적국을 고르면 해당 행을 보여줍니다.</p>`:!ch.found?`<p class="help">국가표에서 목적국 행을 찾지 못했습니다. 원문을 확인하십시오.</p>`:ch.aligned?`<div class="chips">${Object.entries(ch.cols).map(([k,v])=>`<span class="chip ${v?"x":"o"}">${esc(k)}${v?" X":""}</span>`).join("")}</div>`:`<p class="help">표 구조가 예상과 달라 칸을 자동 매핑하지 못했습니다. 원본 행: <span class="mono">${esc(ch.row.join(" | "))}</span></p>`}</div>
+  <div class="item"><h3>규정 원문 검색</h3><input type="text" id="reg-q" value="${esc(REGQ)}" placeholder="예: 810.6, general license, Korea, de minimis"><div id="reg-out">${regSearch()}</div></div>`;
+}
+function regSearch(){
+  const q=REGQ.trim().toLowerCase();if(q.length<2) return `<p class="help">두 글자 이상 입력하면 수집된 원문 섹션에서 찾습니다.</p>`;
+  const hits=[];
+  (DATA.regs.parts||[]).forEach(p=>(p.sections||[]).forEach(s=>{const h=(s.head+" "+s.text).toLowerCase();const k=h.indexOf(q);if(k>=0)hits.push({p,s,k})}));
+  if(!hits.length) return `<p class="help">일치하는 섹션이 없습니다.</p>`;
+  const mark=t=>esc(t).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"gi"),m=>`<mark>${m}</mark>`);
+  return `<p class="help">${hits.length}개 섹션 (최대 30개 표시)</p>`+hits.slice(0,30).map(h=>`<details class="sec"><summary>${esc(h.p.title)} CFR · ${mark(h.s.head)}</summary><pre>${mark(h.s.text)}</pre></details>`).join("");
 }
 function calcText(){
   const d=deMinimis(S);
@@ -520,6 +681,8 @@ function memoText(F){
     return v||"미답변"};
   STEPS.forEach(st=>{if(!st.items.length)return;L.push(`  [${st.title}]`);st.items.forEach(it=>{if(!visible(it)||it.type==="calc")return;L.push(`   - ${it.label}: ${show(it)}${S.n[it.id]?` / 근거: ${S.n[it.id]}`:""}`)})});
   L.push("");
+  if(DATA.status==="ok"){const s=DATA.manifest.sources||{};L.push(`※ 연결 데이터: 수집 ${(DATA.manifest.fetchedAt||"").slice(0,10)}${s.ecfr?` / eCFR ${Object.entries(s.ecfr.asOf||{}).map(([a,b])=>a+" "+b).join(", ")}`:""}${s.csl?` / 통합 제재명단 ${s.csl.asOf} (${s.csl.count}건)`:""}`)}
+  L.push("※ 면책 고지: 본 기록의 판단 결과와 연결 데이터는 참고 목적으로만 제공되며 법률 자문이 아닙니다. 데이터는 수집 시점 기준이며 오류나 누락이 있을 수 있습니다. 구체적인 수출 거래는 반드시 변호사의 검토를 받으십시오.");
   L.push("※ 본 기록은 판단 과정과 근거를 남기기 위한 사전검증 자료이며, 법적 효력이 있는 최종 판정이 아닙니다. 최종 판단은 BIS 공식 품목분류(CCATS)·허가, 산업통상자원부·전략물자관리원·원자력안전위원회의 판정 및 변호사 의견서에 따릅니다.");
   return L.join("\n");
 }
@@ -531,9 +694,14 @@ function renderMain(){
   const next=i<STEPS.length-1?`<button class="btn primary" type="button" data-go="${STEPS[i+1].id}">${STEPS[i+1].title} →</button>`:"<span></span>";
   if(st.id==="s8"){
     const F=evalAll();
-    $("#main").innerHTML=`<div class="panel-head"><div class="eyebrow">Step 09</div><h2>판단 기록</h2><p>아래 메모를 복사해 의견서, 내부 승인 문서, 클라이언트 보고서에 붙이십시오. 문항별 답변과 근거 메모가 함께 들어갑니다.</p></div>
+    $("#main").innerHTML=`<div class="panel-head"><div class="eyebrow">Step ${String(i+1).padStart(2,"0")}</div><h2>판단 기록</h2><p>아래 메모를 복사해 의견서, 내부 승인 문서, 클라이언트 보고서에 붙이십시오. 문항별 답변과 근거 메모가 함께 들어갑니다.</p></div>
      <div class="items"><div class="item"><div class="actions"><button class="btn primary" type="button" id="copy-memo">메모 복사</button><button class="btn" type="button" id="copy-json">입력 데이터(JSON) 복사</button></div><div class="toast" id="toast" role="status"></div><textarea class="memo" id="memo" readonly>${esc(memoText(F))}</textarea></div></div>
      <div class="panel-foot">${prev}<span></span></div>`;
+    return;
+  }
+  if(st.id==="s9"){
+    $("#main").innerHTML=`<div class="panel-head"><div class="eyebrow">Step ${String(i+1).padStart(2,"0")}</div><h2>규정·명단 데이터</h2><p>미국 정부 공개 데이터(eCFR, 통합 제재명단, Federal Register)를 수집 시점 기준으로 보여줍니다. 참고 목적이며, 판단에 쓰기 전 원문과 대조하고 변호사 검토를 받으십시오.</p></div>
+     <div class="items">${regView()}</div><div class="panel-foot">${prev}${next}</div>`;
     return;
   }
   $("#main").innerHTML=`<div class="panel-head"><div class="eyebrow">Step ${String(i+1).padStart(2,"0")}</div><h2>${st.title}</h2><p>${esc(st.lead)}</p></div>
@@ -545,6 +713,7 @@ function refresh(full){
   renderRail(F);renderAside(F);
   if(full) renderMain(); else { const c=$("#calc"); if(c) c.textContent=calcText(); }
   $("#sample-bar").hidden=!S.sample;
+  dataStrip();
   save();
 }
 function markEdited(){ if(S.sample){S.sample=false;} }
@@ -558,6 +727,17 @@ document.addEventListener("click",e=>{
     const after=STEPS.find(s=>s.id===S.step).items.filter(visible).length;
     refresh(before!==after);return}
   if(t.id==="btn-result"){S.step="s8";refresh(true);return}
+  if(t.dataset.screen!==undefined){
+    const i=+t.dataset.screen,name=((S.a.parties||[])[i]||{}).name||"";
+    if(!toks(name).length){SCREEN_RES=null;$("#screen-out").innerHTML=`<p class="help">${ROLES[i]}의 상호를 영문 전체 이름으로 입력하십시오. 명단은 영문으로만 수록되어 있습니다.</p>`;return}
+    SCREEN_RES={i,name,loading:true,matches:[]};$("#screen-out").innerHTML=screenOut();
+    ensureScreening().then(()=>{SCREEN_RES={i,name,matches:screenName(name)};const o=$("#screen-out");if(o)o.innerHTML=screenOut()});
+    return}
+  if(t.dataset.mark){
+    const [i,st]=t.dataset.mark.split("|"),p=S.a.parties[+i];p.status=st;p.date=new Date().toISOString().slice(0,10);
+    const asOf=((DATA.manifest||{}).sources||{}).csl?.asOf||"";
+    const line=`${ROLES[+i]} "${SCREEN_RES?SCREEN_RES.name:p.name}": 통합 제재명단(${asOf}) 대조, 후보 ${SCREEN_RES?SCREEN_RES.matches.length:0}건 → ${st}`;
+    S.n.parties=(S.n.parties?S.n.parties+"; ":"")+line;markEdited();refresh(true);return}
   if(t.id==="btn-sample"){askConfirm("지금 입력한 내용 대신 예시 거래를 불러옵니다. 계속할까요?",()=>{S=JSON.parse(JSON.stringify(SAMPLE));refresh(true)});return}
   if(t.id==="btn-reset"||t.id==="btn-reset2"){askConfirm("입력한 내용이 모두 지워집니다. 계속할까요?",()=>{S=blank();refresh(true)});return}
   if(t.id==="confirm-no"){$("#confirm-bar").hidden=true;return}
@@ -574,6 +754,7 @@ function askConfirm(msg,fn){$("#confirm-msg").textContent=msg;pending=fn;$("#con
 
 document.addEventListener("input",e=>{
   const t=e.target;
+  if(t.id==="reg-q"){REGQ=t.value;$("#reg-out").innerHTML=regSearch();return}
   if(t.dataset.k){S.a[t.dataset.k]=t.value;markEdited();refresh(t.tagName==="SELECT"&&STEPS.some(s=>s.items.some(it=>it.showIf)));return}
   if(t.dataset.n){S.n[t.dataset.n]=t.value;markEdited();save();$("#sample-bar").hidden=!S.sample;return}
   if(t.dataset.p!==undefined){const i=+t.dataset.p;S.a.parties[i]=S.a.parties[i]||{};S.a.parties[i][t.dataset.pf]=t.value;markEdited();refresh(false);return}
@@ -583,5 +764,6 @@ document.addEventListener("input",e=>{
 document.addEventListener("change",e=>{const t=e.target;if(t.tagName==="SELECT"&&t.dataset.k){refresh(true)}});
 
 refresh(true);
+loadData();
 })();
 </script>
