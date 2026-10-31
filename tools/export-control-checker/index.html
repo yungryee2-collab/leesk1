@@ -1,0 +1,587 @@
+<title>수출통제 사전검증</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap">
+<style>
+/* Layout: 단계 레일(좌) · 문항 원장(중앙) · 실시간 판단 기록(우). 모바일은 한 열로 쌓임. */
+:root{
+  --bg:#f3f6f8; --surface:#ffffff; --sunk:#eaf0f4; --ink:#15202b; --muted:#566573; --line:#d5dde4;
+  --accent:#1c5a8c; --accent-soft:#e2ecf5; --on-accent:#ffffff;
+  --crit:#b42318; --crit-soft:#fcebe9; --warn:#9a5806; --warn-soft:#fcf2e0;
+  --open:#5646b0; --open-soft:#eeebfa; --ok:#1d7549; --ok-soft:#e3f3ea;
+  --f-display:"Noto Serif KR","Nanum Myeongjo",Georgia,serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e141a; --surface:#151e27; --sunk:#111921; --ink:#e2e8ee; --muted:#93a2b0; --line:#283541;
+  --accent:#86b8e3; --accent-soft:#1a2b3b; --on-accent:#0e141a;
+  --crit:#f28b80; --crit-soft:#3a1c1a; --warn:#eeb25d; --warn-soft:#382a14;
+  --open:#b4a8f3; --open-soft:#262046; --ok:#72cf9e; --ok-soft:#163223; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e141a; --surface:#151e27; --sunk:#111921; --ink:#e2e8ee; --muted:#93a2b0; --line:#283541;
+  --accent:#86b8e3; --accent-soft:#1a2b3b; --on-accent:#0e141a;
+  --crit:#f28b80; --crit-soft:#3a1c1a; --warn:#eeb25d; --warn-soft:#382a14;
+  --open:#b4a8f3; --open-soft:#262046; --ok:#72cf9e; --ok-soft:#163223; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{text-wrap:balance;margin:0}
+h1{font-family:var(--f-display);font-size:1.75rem;font-weight:700;letter-spacing:-.01em}
+h2{font-family:var(--f-display);font-size:1.3rem;font-weight:600}
+h3{font-size:.95rem;font-weight:600}
+.mono{font-family:var(--f-mono);font-size:.82em}
+.eyebrow{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:14px}
+header.top p{margin:4px 0 0;color:var(--muted);max-width:68ch}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:7px 12px;font-size:.88rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+
+.principle{background:var(--accent-soft);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;font-size:.9rem;display:flex;gap:10px 16px;flex-wrap:wrap;align-items:baseline}
+.principle b{color:var(--accent);white-space:nowrap}
+.principle span{flex:1 1 40ch;min-width:0}
+.sample{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:8px 14px;font-size:.88rem;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.sample .btn{font-size:.82rem;padding:4px 10px}
+
+.grid{display:grid;grid-template-columns:220px minmax(0,1fr) 360px;gap:20px;align-items:start}
+@media (max-width:1100px){.grid{grid-template-columns:200px minmax(0,1fr)}.aside{grid-column:1/-1}}
+@media (max-width:720px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* 단계 레일 */
+.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:2px}
+.rail button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;text-align:left;background:none;border:0;border-radius:var(--r);padding:8px 10px}
+.rail button:hover{background:var(--sunk)}
+.rail button[aria-current="step"]{background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
+.rail .no{font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.rail .nm{font-size:.9rem;font-weight:500}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dot.crit{background:var(--crit)}.dot.warn{background:var(--warn)}.dot.open{background:var(--open)}.dot.ok{background:var(--ok)}
+.rail .prog{font-family:var(--f-mono);font-size:.72rem;color:var(--muted);grid-column:2/4;margin-top:-6px}
+@media (max-width:720px){
+  .rail{position:static;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}
+  .rail button{grid-template-columns:auto auto;white-space:nowrap;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
+  .rail .prog,.rail .dot{display:none}
+  .rail button[aria-current="step"]{box-shadow:inset 0 0 0 2px var(--accent)}
+}
+
+/* 문항 원장 */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);min-width:0}
+.panel-head{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.panel-head p{margin:0;color:var(--muted);font-size:.9rem;max-width:72ch}
+.items{display:flex;flex-direction:column}
+.item{padding:16px 20px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.item:last-child{border-bottom:0}
+.q{display:flex;gap:12px;justify-content:space-between;align-items:baseline;flex-wrap:wrap}
+.q label,.q .lbl{font-weight:500;flex:1 1 30ch;min-width:0}
+.cite{font-family:var(--f-mono);font-size:.74rem;color:var(--accent);background:var(--accent-soft);padding:1px 7px;border-radius:4px;white-space:nowrap}
+.help{font-size:.84rem;color:var(--muted);margin:0;max-width:75ch}
+input[type=text],input[type=number],input[type=date],select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:72px;resize:vertical}
+input[type=number]{font-variant-numeric:tabular-nums}
+.note{font-size:.84rem;padding:6px 10px;background:transparent;border-style:dashed}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;width:max-content;max-width:100%}
+.seg button{border:0;background:var(--bg);padding:6px 16px;font-size:.88rem;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.seg button[data-v="u"][aria-pressed="true"]{background:var(--open);color:var(--on-accent)}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.checks.long{grid-template-columns:minmax(0,1fr)}
+.checks label{display:flex;gap:8px;align-items:flex-start;font-size:.9rem;padding:6px 8px;border-radius:4px;background:var(--bg)}
+.checks input{margin-top:4px;accent-color:var(--accent)}
+.calc{font-family:var(--f-mono);font-size:.86rem;background:var(--sunk);border-radius:var(--r);padding:8px 12px;font-variant-numeric:tabular-nums}
+.parties{overflow-x:auto}
+.parties table{border-collapse:collapse;width:100%;min-width:620px;font-size:.88rem}
+.parties th{font-size:.74rem;text-align:left;color:var(--muted);font-weight:600;padding:4px 6px;letter-spacing:.04em}
+.parties td{padding:4px 6px;vertical-align:middle}
+.parties td:first-child{white-space:nowrap;font-weight:500}
+.panel-foot{display:flex;justify-content:space-between;gap:8px;padding:14px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
+
+/* 판단 기록 */
+.aside{display:flex;flex-direction:column;gap:14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);min-width:0}
+@media (max-width:1100px){.aside{position:static}}
+.verdict{border-radius:var(--r);padding:14px 16px;border:1px solid var(--line);background:var(--surface);display:grid;gap:6px}
+.verdict .state{font-family:var(--f-display);font-size:1.2rem;font-weight:700}
+.verdict.crit{background:var(--crit-soft);border-color:transparent}.verdict.crit .state{color:var(--crit)}
+.verdict.warn{background:var(--warn-soft);border-color:transparent}.verdict.warn .state{color:var(--warn)}
+.verdict.ok{background:var(--ok-soft);border-color:transparent}.verdict.ok .state{color:var(--ok)}
+.verdict p{margin:0;font-size:.88rem}
+.counts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.count{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
+.count b{display:block;font-family:var(--f-mono);font-size:1.3rem;font-variant-numeric:tabular-nums;line-height:1.2}
+.count span{font-size:.76rem;color:var(--muted)}
+.count.crit b{color:var(--crit)}.count.warn b{color:var(--warn)}.count.open b{color:var(--open)}
+.ledger{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);max-height:56vh;overflow:auto}
+@media (max-width:1100px){.ledger{max-height:none}}
+.ledger h3{padding:12px 14px 8px;position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line)}
+.ledger ul{list-style:none;margin:0;padding:0}
+.ledger li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:.86rem}
+.ledger li:last-child{border-bottom:0}
+.pill{font-size:.7rem;font-weight:600;padding:1px 7px;border-radius:999px;white-space:nowrap;height:max-content;margin-top:2px}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.open{background:var(--open-soft);color:var(--open)}.pill.info{background:var(--accent-soft);color:var(--accent)}
+.ledger .where{grid-column:2;font-size:.74rem;color:var(--muted)}
+.ledger .where a{color:inherit}
+.empty{padding:14px;color:var(--muted);font-size:.88rem}
+
+/* 결과 단계 */
+.memo{font-family:var(--f-mono);font-size:.8rem;white-space:pre-wrap;background:var(--sunk);border-radius:var(--r);padding:14px;height:460px;overflow:auto;width:100%;border:1px solid var(--line);color:var(--ink);line-height:1.55}
+.toast{font-size:.84rem;color:var(--ok);min-height:1.2em}
+.refs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 18px;font-size:.84rem;padding:0;margin:0;list-style:none}
+.refs a{color:var(--accent)}
+footer{color:var(--muted);font-size:.8rem;border-top:1px solid var(--line);padding-top:14px;display:grid;gap:10px}
+@media (prefers-reduced-motion:no-preference){.item{transition:background .15s}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Export Control Pre-Clearance · EAR / NRC / DOE 810 / 대외무역법</div>
+      <h1>수출통제 사전검증</h1>
+      <p>관할 판단부터 품목분류, 허가, 상대방 확인, 최종용도, 한국 규제, 제재까지 8단계로 짚고, 답변마다 근거를 기록합니다. 판단 기록은 메모 형식으로 복사해 의견서나 보고서에 붙일 수 있습니다.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-sample" type="button">예시 불러오기</button>
+      <button class="btn" id="btn-reset" type="button">새 검토 시작</button>
+      <button class="btn primary" id="btn-result" type="button">판단 기록 보기</button>
+    </div>
+  </header>
+
+  <div class="principle"><b>사용 원칙</b><span>이 도구는 판단을 대신하지 않고, 판단 과정을 빠짐없이 짚어 근거를 남깁니다. 법적 효력이 있는 최종 판정은 BIS 공식 품목분류(CCATS)·허가, 산업통상자원부·전략물자관리원·원자력안전위원회의 판정, 그리고 변호사 의견서의 몫입니다.</span></div>
+
+  <div class="sample" id="sample-bar" hidden>
+    <span>지금 보이는 내용은 <b>예시 거래</b>입니다. 실제 건을 검토하려면 새 검토를 시작하세요.</span>
+    <button class="btn" type="button" id="btn-reset2">새 검토 시작</button>
+  </div>
+  <div class="sample" id="confirm-bar" hidden>
+    <span id="confirm-msg">입력한 내용이 모두 지워집니다. 계속할까요?</span>
+    <span class="actions"><button class="btn" type="button" id="confirm-no">취소</button><button class="btn primary" type="button" id="confirm-yes">지우고 시작</button></span>
+  </div>
+
+  <div class="grid">
+    <nav class="rail" id="rail" aria-label="검토 단계"></nav>
+    <main class="panel" id="main"></main>
+    <aside class="aside" id="aside" aria-label="실시간 판단 기록"></aside>
+  </div>
+
+  <footer>
+    <ul class="refs">
+      <li><a href="https://www.ecfr.gov/current/title-15/subtitle-B/chapter-VII/subchapter-C" target="_blank" rel="noopener">EAR 원문 (15 CFR 730–774, eCFR)</a></li>
+      <li><a href="https://www.trade.gov/data-visualization/csl-search" target="_blank" rel="noopener">미국 통합 제재명단 검색 (Consolidated Screening List)</a></li>
+      <li><a href="https://www.ecfr.gov/current/title-10/chapter-I/part-110" target="_blank" rel="noopener">NRC 10 CFR Part 110 (원자력 장비·물질 수출입)</a></li>
+      <li><a href="https://www.ecfr.gov/current/title-10/chapter-III/part-810" target="_blank" rel="noopener">DOE 10 CFR Part 810 (원자력 기술 이전)</a></li>
+      <li><a href="https://www.yestrade.go.kr" target="_blank" rel="noopener">Yestrade 전략물자관리시스템 (판정·허가)</a></li>
+      <li><a href="https://sanctionssearch.ofac.treas.gov" target="_blank" rel="noopener">OFAC 제재명단 검색 (SDN)</a></li>
+    </ul>
+    <div>기준 자료: 「미국 원자력 수출통제 제도의 이해」 자료집(2026.10.22., 수정 2차) — 관할 검토 순서, 8.1 수출 절차 흐름, 9.3 계약 체크포인트, 7.4 NEPS 연계 반영.</div>
+    <div>규정 기준일: 2026-10-31 작성. 국가표, Entity List, 허가예외 요건, 50% 지분 관계사 규칙은 수시로 바뀌므로 사용 전 원문 최신본을 확인하십시오. 입력 내용은 이 브라우저에만 저장되며 다른 사람이나 기기와 공유되지 않습니다.</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+const KEY="ecv:v1";
+const E_GROUP=["이란","북한","시리아","쿠바"];
+const RU=["러시아","벨라루스"];
+const DIVERSION=["튀르키예","UAE","카자흐스탄","우즈베키스탄","아르메니아","키르기스스탄"];
+const COUNTRIES=["체코","폴란드","루마니아","네덜란드","영국","미국","UAE","사우디아라비아","튀르키예","이집트","베트남","인도네시아","필리핀","카자흐스탄","우즈베키스탄","아르메니아","키르기스스탄","인도","중국","러시아","벨라루스","이란","북한","시리아","쿠바","기타"];
+const YN=[["y","예"],["n","아니오"],["u","모름"]];
+const SEV={crit:"중대",warn:"주의",open:"확인 필요",info:"기록"};
+const ROLES=["매수인","중간수하인","최종수하인","최종사용자","대리인·운송주선인","결제·보증 은행"];
+const SCREEN=["","미실시","일치 없음","잠재 일치(확인 중)","일치(등재 확인)"];
+const REDFLAGS=[
+ "고객이 최종용도·최종사용자 정보 제공을 꺼림",
+ "품목 성능이 매수인의 사업 분야와 맞지 않음",
+ "목적국의 기술 수준이나 수요에 비해 이례적인 주문",
+ "고가 품목인데 현금 결제를 고집하거나 결제 구조가 이례적임",
+ "매수인의 사업 이력이 거의 확인되지 않음",
+ "매수인이 품목 성능·사양을 잘 모름",
+ "설치·교육·유지보수 등 통상 수반되는 서비스를 거절",
+ "납기나 인도 장소가 모호하거나 운송 경로가 비정상적",
+ "운송주선인(forwarder)을 최종 목적지로 기재",
+ "국내 사용인지 재수출인지에 대한 답변을 회피",
+ "포장·표기가 운송 방식이나 목적지와 맞지 않음"
+];
+const f=(sev,msg)=>({sev,msg});
+const destOf=S=>S.a.dest==="기타"?(S.a.destOther||"기타"):(S.a.dest||"");
+const num=v=>{const n=parseFloat(String(v??"").replace(/,/g,""));return isFinite(n)?n:null};
+
+function deMinimis(S){
+  const us=num(S.a.usContent), tot=num(S.a.total);
+  if(us===null||tot===null||tot<=0) return null;
+  const strict=E_GROUP.includes(S.a.dest);
+  const th=strict?10:25, pct=us/tot*100;
+  return {pct,th,over:pct>th,strict};
+}
+
+const STEPS=[
+{id:"s0",title:"거래 개요",lead:"검토 대상 거래를 특정합니다. 목적국은 이후 de minimis 기준과 국가 위험 판단에 쓰입니다.",items:[
+ {id:"name",type:"text",label:"건명",ph:"예: OO 원전 프로젝트 1차측 밸브 패키지 수출"},
+ {id:"item",type:"textarea",label:"품목 및 주요 사양",ph:"품목명, 기능, 핵심 성능 수치, 원자력 전용 설계 여부"},
+ {id:"hs",type:"text",label:"HS 코드",ph:"예: 8481.80"},
+ {id:"exporter",type:"text",label:"수출자 (Exporter of Record)",ph:"법인명"},
+ {id:"dest",type:"select",label:"최종 목적국",options:COUNTRIES,cite:"Supp.1 to Part 740",
+  eval:(v)=>{
+   if(E_GROUP.includes(v)) return [f("crit",`${v}: 포괄적 금수·제재 대상국입니다. EAR Part 746과 OFAC 제재상 원칙적으로 금지되므로 거래를 멈추고 전문가 검토를 받으십시오.`)];
+   if(RU.includes(v)) return [f("crit",`${v}: EAR §746.8의 광범위 허가요건이 적용되고 허가는 원칙적으로 거부됩니다.`)];
+   if(v==="중국") return [f("warn","중국: 군사 최종용도·최종사용자 규정(§744.21) 적용 대상국이고 Entity List 등재 기업이 많습니다. 상대방 확인을 강화하십시오.")];
+   if(DIVERSION.includes(v)) return [f("warn",`${v}: 러시아 우회수출 경로로 미국 정부 경고에 거론된 국가입니다. 최종사용자와 재수출 여부를 강하게 확인하십시오.`)];
+   if(v==="기타") return [f("open","목적국을 국가그룹표(Supp.1 to Part 740)와 직접 대조하십시오.")];
+   return [];
+  }},
+ {id:"destOther",type:"text",label:"기타 목적국명",showIf:S=>S.a.dest==="기타"}
+]},
+{id:"s1",title:"관할 판단",lead:"ITAR → DOE Part 810 → NRC Part 110 → EAR 순서로 봅니다. 관할은 품목·기술 단위로 판단하고, 해당하는 트랙은 동시에 착수합니다. 한 기관의 허가가 다른 기관의 요건을 면제하지 않습니다(10 CFR §810.8(b)).",items:[
+ {id:"j3",type:"yn",label:"군사용으로 설계·개조되었거나, USML 품목을 위해 '특별히 설계'된 품목인가?",cite:"22 CFR 120.41, 121 (ITAR)",
+  help:"관할 판단은 ITAR부터 봅니다. ITAR가 아니라고 명확히 결론 낸 뒤에만 DOE·NRC·EAR로 넘어갑니다.",
+  eval:v=>v==="y"?[f("crit","ITAR(USML) 관할입니다. 국무부 DDTC 절차를 따르고, 불분명하면 관할 판정(CJ)을 받으십시오.")]:[]},
+ {id:"j2",type:"yn",label:"미국 원천의 원자력 기술이나 기술지원(설계·제작·운전·정비·교육)을 해외에 제공하는가?",cite:"10 CFR 810.2, 810.3",
+  help:"한국 회사가 제공하더라도 원천이 미국 기술(라이선스, 기술이전, 참조)이면 Part 810이 적용될 수 있습니다. 미국인(법인·개인)의 지원·자문 참여, 입찰 과정의 비공개 기술정보 제공도 포함됩니다. 불분명하면 §810.5에 따라 DOE/NNSA에 해석을 요청할 수 있습니다(통상 30일 내 회신).",
+  eval:v=>v==="y"?[f("warn","DOE Part 810 트랙을 착수하십시오. 허가 신청 의무자는 미국인(원천기술 보유자)이고, 한국 기업은 신청 협력·기술접근 통제·재이전 제한 등 계약상 의무를 집니다.")]:v==="u"?[f("open","§810.5에 따른 DOE/NNSA 해석 요청을 검토하십시오.")]:[]},
+ {id:"j2a",type:"yn",label:"농축·재처리·중수 생산 관련 민감 원자력 기술(SNT)이나 플루토늄 함유 연료 제조 지원이 포함되는가?",cite:"10 CFR 810.3, 810.7",showIf:S=>S.a.j2==="y",
+  eval:v=>v==="y"?[f("crit","목적국과 관계없이 DOE 특정허가 대상입니다.")]:[]},
+ {id:"j2b",type:"yn",label:"목적국이 Part 810 부록 A(일반허가 대상국)에 등재되어 있는가?",cite:"10 CFR 810 App. A",showIf:S=>S.a.j2==="y",
+  help:"부록 A는 2025.11.과 2026.6.에 개정되었습니다. 최신본과 대조하십시오.",
+  eval:(v,S)=>{
+   if(v==="n") return [f("crit","DOE 특정허가가 필요합니다. 처리 기간이 길어 Financial Close, EPC 발효, COD 일정에 직접 영향을 줍니다. 대주단 인출 선행조건에 반영하십시오.")];
+   if(v==="y"&&S.a.j2a!=="y") return [f("info","Part 810 일반허가 대상입니다. 활동 개시 후 30일 이내 DOE에 보고하십시오(§810.12).")];
+   return [];
+  }},
+ {id:"j1",type:"yn",label:"원자로·핵연료주기 시설의 장비(§110.8)나 핵물질(§110.2)이 포함되는가?",cite:"10 CFR 110.2, 110.8",
+  help:"원자로 압력용기, 연료 장전기, 제어봉 구동장치, 1차 냉각재 펌프, 증기발생기, 1차 회로와 접촉하는 특수 설계 부품 등(Part 110 부록 A~K). 핵급 흑연과 중수소도 원자력 용도면 NRC 관할입니다.",
+  eval:v=>v==="y"?[f("warn","NRC 트랙(NRC Form 7, 일반허가 §110.21–110.26 또는 특정허가)을 착수하십시오. 대한민국 등 §110.26(b) 목적지로 가는 미국산 원자로 부품은 일반허가가 가능합니다. 미국 공급사로부터 NRC 허가번호와 조건을 받아 계약에 반영하십시오.")]:[]},
+ {id:"j1a",type:"yn",label:"목적국과 미국 사이에 원자력협력협정(123협정)이 발효되어 있는가?",cite:"10 CFR 110.42(a)(7)",showIf:S=>S.a.j1==="y",
+  help:"원자로 등 시설이나 0.003 effective kg을 넘는 특수핵물질의 수출은 123협정이 법정 요건입니다.",
+  eval:v=>v==="n"?[f("crit","123협정이 없으면 원자로 시설과 특수핵물질은 수출할 수 없습니다. 그 밖의 핵장비는 §110.42(b) 기준(안전조치, 평화적 이용, 재이전 사전동의, 국익)으로 심사됩니다.")]:[]},
+ {id:"j4",type:"yn",label:"품목이 미국에서 선적되거나 미국 원산인가?",cite:"§734.3(a)",
+  eval:v=>v==="y"?[f("info","미국 원산 품목은 어디에 있든 EAR 적용 대상입니다.")]:[]},
+ {id:"usContent",type:"number",label:"해외 제품에 포함된 미국산 통제 부품 가액 (USD)",cite:"§734.4",
+  help:"EAR99 부품은 제외하고, 목적국으로 수출 시 허가가 필요한 미국산 부품만 합산합니다. 계산 방법은 Supp.2 to Part 734를 따릅니다."},
+ {id:"total",type:"number",label:"해외 제품의 판매가 (USD)",cite:"Supp.2 to Part 734",
+  eval:(v,S)=>{
+   const d=deMinimis(S); if(!d) return [];
+   if(d.over) return [f("crit",`미국산 통제 부품 비율 ${d.pct.toFixed(1)}%로 de minimis 기준(${d.th}%)을 넘습니다. 완제품에도 EAR이 적용됩니다.`)];
+   return [f("info",`미국산 통제 부품 비율 ${d.pct.toFixed(1)}%로 기준(${d.th}%) 이하입니다. 계산 근거 문서를 보관하십시오. 일부 품목(예: 9x515, 600시리즈 일부)은 0% 기준이 적용됩니다.`)];
+  }},
+ {id:"dmCalc",type:"calc"},
+ {id:"j7",type:"yn",label:"미국산 기술·소프트웨어로 직접 생산했거나, 그런 기술로 만든 설비에서 생산했는가?",cite:"§734.9 (FDP)",
+  eval:v=>v==="y"?[f("warn","해외직접제품규칙(FDP)의 각 유형(Entity List, 러시아·벨라루스, 첨단 컴퓨팅 등) 요건과 대조하십시오.")]:[]},
+ {id:"j8",type:"yn",label:"미국 안에서 외국인(한국인 포함)이 통제 기술에 접근하는가?",cite:"§734.13(b) (Deemed Export)",
+  eval:v=>v==="y"?[f("warn","간주수출에 해당할 수 있습니다. 접근하는 인력의 국적을 기준으로 허가 여부를 판단하십시오.")]:[]},
+ {id:"j9",type:"yn",label:"DOE 국립연구소 방문이나 공동연구가 예정되어 있는가?",cite:"DOE 민감국가목록(SCL)",
+  eval:v=>v==="y"?[f("warn","민감국가목록(SCL) 사전검토 절차가 적용되는지 확인하고 일정에 반영하십시오.")]:[]}
+]},
+{id:"s2",title:"품목분류",lead:"EAR이 적용된다면 품목이 통제목록(CCL)의 어디에 해당하는지 정합니다. 분류 오류는 그대로 위반 책임으로 이어지므로 근거를 반드시 남깁니다.",items:[
+ {id:"eccn",type:"text",label:"ECCN (또는 EAR99)",ph:"예: 2A291 / EAR99",cite:"Supp.1 to Part 774",
+  help:"원자력 발전설비 관련 참고 후보: 0B (원자력 시설 장비), 2A290·2A291·2A292 (원자력 관련 장비, NP2), 2B (공작기계 등). 후보일 뿐이며 사양 대조가 필요합니다.",
+  eval:(v,S)=>(!v&&S.a.j4==="y")?[f("open","ECCN이 정해지지 않았습니다. 이후 허가 판단은 잠정적입니다.")]:[]},
+ {id:"cbasis",type:"select",label:"분류 근거",options:["","BIS 공식 분류(CCATS)","제조사 제공 분류","자체 분류(기술 검토)","미실시"],
+  eval:v=>{
+   if(v==="미실시") return [f("crit","품목분류를 하지 않았습니다. 분류 전에는 허가 판단을 할 수 없습니다.")];
+   if(v==="제조사 제공 분류") return [f("warn","제조사 분류를 받았더라도 수출자 책임은 면제되지 않습니다. 사양과 대조한 기록을 남기십시오.")];
+   if(v==="자체 분류(기술 검토)") return [f("warn","기술 담당자의 검토 기록(대조한 ECCN 항목, 사양 수치)을 보관하십시오. 확신이 낮으면 CCATS 신청을 검토합니다.")];
+   if(v==="BIS 공식 분류(CCATS)") return [f("info","CCATS 번호와 발급일을 기록하십시오.")];
+   return [];
+  }},
+ {id:"c3",type:"yn",label:"600시리즈 또는 9x515 품목인가?",cite:"§772.1",
+  eval:v=>v==="y"?[f("warn","600시리즈·9x515 품목은 de minimis 0% 적용 국가가 있고 허가예외가 제한됩니다.")]:[]},
+ {id:"reasons",type:"checks",label:"통제 사유 (ECCN의 License Requirements 항목)",options:["NP1","NP2","NS1","NS2","MT","CB","RS","AT","기타"],cite:"Part 742"}
+]},
+{id:"s3",title:"허가 판단",lead:"통제 사유와 목적국을 국가표에서 맞춰 보고, 허가가 필요하면 허가예외를 쓸 수 있는지 봅니다.",items:[
+ {id:"l1",type:"yn",label:"국가표에서 해당 통제 사유와 목적국이 만나는 칸에 X 표시가 있는가?",cite:"Supp.1 to Part 738",
+  help:"예: 통제 사유 NP2에 목적국 칸 X → 허가 필요.",
+  eval:(v,S)=>{
+   if(v!=="y") return [];
+   const ex=S.a.lexc;
+   if(!ex||ex==="없음") return [f("crit","BIS 수출허가가 필요합니다. SNAP-R로 신청하고, 허가 전 선적이나 기술 이전을 하지 마십시오.")];
+   return [f("warn",`허가예외 ${ex} 적용 예정입니다. §740.2의 사용 금지 사유와 해당 예외의 개별 요건을 충족한다는 기록을 남기십시오.`)];
+  }},
+ {id:"lexc",type:"select",label:"적용할 허가예외",options:["","없음","LVS","GBS","TMP","RPL","TSU","STA","기타"],cite:"Part 740",showIf:S=>S.a.l1==="y"},
+ {id:"l3",type:"yn",label:"수출 후 재수출하거나 같은 나라 안에서 다른 사용자에게 넘길 예정인가?",cite:"§734.14, §734.16",
+  eval:v=>v==="y"?[f("warn","재수출·국내이전 단계에도 허가 판단을 다시 하고, 계약상 사전 통지·동의 절차를 두십시오.")]:[]}
+]},
+{id:"s4",title:"상대방 확인",lead:"거래에 관여하는 모든 당사자를 미국·EU·UK·UN 제재명단과 대조합니다. 선적 직전에 다시 조회합니다.",items:[
+ {id:"parties",type:"parties",label:"거래 당사자별 명단 조회 결과",cite:"Supp.4 to Part 744 · OFAC SDN",
+  help:"정확한 영문 전체 상호와 주소로 조회합니다. 대상 명단: BIS(Denied Persons, Entity, Unverified, MEU), OFAC(SDN), 국무부(Debarred). 통합 검색(CSL)으로 한 번에 볼 수 있습니다."},
+ {id:"aff",type:"yn",label:"명단 등재 기업이 50% 이상 지분을 가진 관계사인지 확인했는가?",cite:"OFAC 50% Rule · BIS Affiliates Rule",
+  help:"OFAC는 등재자가 합산 50% 이상 소유한 기업도 제재 대상으로 봅니다. BIS의 Affiliates Rule(Entity List·MEU List 등재자의 50% 이상 지분 보유 기업)은 유예 후 2026.11.10. 재발효 예정입니다.",
+  eval:v=>v==="n"?[f("crit","지분 구조(실소유자)를 확인하지 않았습니다. BIS Affiliates Rule이 2026.11.10. 재발효 예정이므로 선적 전에 등재자의 합산 지분 50% 이상 여부를 확인하십시오.")]:[]}
+]},
+{id:"s5",title:"최종용도",lead:"최종용도와 최종사용자에 대한 위험 신호를 점검합니다. 위험 신호가 있으면 해소하거나 거래를 중단해야 합니다.",items:[
+ {id:"rf",type:"redflags",label:"BIS 위험 신호(Red Flags) 중 해당하는 항목",cite:"Supp.3 to Part 732"},
+ {id:"e1",type:"yn",label:"최종용도·최종사용자 확인서(EUC)를 받았는가?",cite:"§748.11",
+  help:"서약서에 국내법뿐 아니라 미국 재수출 통제 등 국제 수출통제 규범을 지키겠다는 문구를 넣으면, 최종사용자 단계의 위반 위험이 수출자에게 넘어오는 것을 막을 수 있습니다.",
+  eval:(v,S)=>v==="n"?[f(S.a.l1==="y"?"crit":"warn","최종용도 확인서가 없습니다. 최종사용자의 서명과 재수출 금지 확약이 담긴 확인서를 받으십시오.")]:[]},
+ {id:"e2",type:"yn",label:"안전조치(Safeguards)가 적용되지 않는 시설, 농축·재처리·중수 생산에 쓰일 가능성이 있는가?",cite:"§744.2",
+  eval:v=>v==="y"?[f("crit","원자력 최종용도 규정(§744.2)에 따라 모든 품목(EAR99 포함)에 허가가 필요할 수 있습니다.")]:[]},
+ {id:"e2b",type:"yn",label:"대상 시설에 IAEA 안전조치가 적용되는가?",cite:"INFCIRC/153",
+  eval:v=>v==="n"?[f("crit","IAEA 안전조치가 적용되지 않는 시설입니다. NSG 지침과 미국·한국 규정상 수출이 크게 제한됩니다.")]:[]},
+ {id:"e3",type:"yn",label:"군사 최종용도·최종사용자일 가능성이 있는가?",cite:"§744.21",
+  eval:v=>v==="y"?[f("crit","군사 최종용도 규정에 따라 EAR99 일부 품목까지 허가가 필요할 수 있습니다.")]:[]}
+]},
+{id:"s6",title:"한국 규제",lead:"국내 허가(NEPS·Yestrade)와 미국 허가는 별개이며, 합법적인 수출에는 둘 다 필요합니다. 미국 측 허가는 미국인 또는 미국 기업이 신청합니다.",items:[
+ {id:"k1",type:"select",label:"전략물자 해당 여부 판정",options:["","미실시","자가판정: 비해당","자가판정: 해당","전문판정: 비해당","전문판정: 해당"],cite:"대외무역법 · 전략물자수출입고시",
+  help:"원자력전용품목은 KINAC, 이중용도품목은 무역안보관리원에 전문판정을 신청합니다. 전문판정은 판정일부터 2년간 유효합니다.",
+  eval:v=>{
+   if(v==="미실시") return [f("crit","전략물자 판정을 하지 않았습니다. NEPS 또는 Yestrade에서 자가판정을 하거나 전문판정을 받으십시오.")];
+   if(v==="자가판정: 비해당") return [f("warn","원자력 관련 품목은 자가판정만으로는 위험합니다. KINAC 전문판정을 받아 두기를 권합니다.")];
+   if(v==="전문판정: 비해당") return [f("info","전문판정 유효기간(2년) 안에 선적되는지 확인하십시오.")];
+   if(v&&v.endsWith(": 해당")) return [f("crit","전략물자에 해당합니다. 선적 전 수출허가(원자력전용품목은 원자력안전위원회, 이중용도품목은 산업통상자원부)를 받으십시오.")];
+   return [];
+  }},
+ {id:"k2",type:"yn",label:"원자력전용품목인가?",cite:"원자력안전법 · 고시 (NEPS)",
+  help:"NEPS로 원자력안전위원회에 신청하고 KINAC이 기술검토합니다. 원자력전용품목에는 포괄수출허가가 적용되지 않습니다. 첨부서류: 수출계약서, 최종사용자 서약서(수출자 서약서는 2026.9.1.부터 폐지).",
+  eval:v=>v==="y"?[f("warn","NEPS 개별수출허가(또는 원자력플랜트기술수출허가) 경로입니다. KINAC 기술검토 기간을 일정에 반영하십시오.")]:[]},
+ {id:"k6",type:"yn",label:"NEPS에 기재할 최종사용자·최종용도 정보가 미국 측 허가 신청 내용과 일치하는가?",cite:"자료집 7.4",
+  help:"한미 양국 정부는 수출통제 정보를 공유할 수 있습니다. 불일치하면 신청 전체의 신뢰성이 흔들려 심사 지연이나 불허로 이어질 수 있습니다.",
+  eval:v=>v==="n"?[f("crit","한미 양측에 제출하는 최종사용자·최종용도 정보를 하나로 맞추십시오.")]:[]},
+ {id:"k7",type:"yn",label:"허가 신청 전 구매자·최종수하인·최종사용자의 신원과 최종용도를 확인하고 기록을 5년간 보관하는 절차가 있는가?",cite:"고시 제18조의3 · 대외무역법 제28조 · 고시 제92조",
+  help:"2026.9.1. 개정 고시: 허가 후 사실관계가 달라질 가능성이 있으면 수출을 멈추고 허가기관과 협의하며, 수출 후 재판매·재수출·국외 재제공 동의를 요구받으면 허가기관과 협의해야 합니다.",
+  eval:v=>v==="n"?[f("warn","개정 고시상 수출자 의무(신원·최종용도 확인, 변경 시 중단·협의, 재수출 동의 요청 시 협의)와 5년 기록 보관 절차를 마련하십시오.")]:[]},
+ {id:"k3",type:"yn",label:"비해당 품목이라도 대량파괴무기 등에 쓰일 우려를 알았거나 정부로부터 통보받았는가?",cite:"대외무역법 제19조 (상황허가)",
+  eval:v=>v==="y"?[f("crit","상황허가(Catch-all) 대상입니다. 비해당 품목이라도 허가를 받아야 합니다.")]:[]},
+ {id:"k4",type:"yn",label:"미국에서 들여온 핵물질·장비·기술을 제3국으로 다시 이전하는가?",cite:"한미 원자력협정 (2015)",
+  eval:v=>v==="y"?[f("crit","한미 원자력협정상 재이전에 미국 측 동의가 필요한지 확인하십시오.")]:[]},
+ {id:"k5",type:"yn",label:"기술 라이선스·공급 계약에 수출 지역 제한이나 라이선서 사전동의 조항이 있는가?",cite:"계약 검토",
+  help:"규제 허가와 별개로, 원천기술 보유자와의 계약상 동의가 없으면 수출 자체가 계약 위반이 될 수 있습니다. 한수원·한전과 웨스팅하우스의 2025.1. 합의도 수출 가능 지역 구분 등이 보도되었습니다. 기업 간 합의는 Part 810에 따른 미국 정부의 허가·보고 요건을 대체하지 않습니다.",
+  eval:v=>v==="y"?[f("crit","라이선서의 서면 동의 또는 계약상 근거를 확보하기 전에는 계약 체결과 선적을 미루십시오.")]:[]}
+]},
+{id:"s7",title:"제재·계약",lead:"제재 법규와 수입국 요건, 그리고 수출통제 위험이 계약과 금융 구조에 반영되었는지 확인합니다.",items:[
+ {id:"x1",type:"yn",label:"거래, 결제, 운송 경로에 OFAC·EU·UK 제재 대상국이나 대상자가 연결되어 있는가?",cite:"31 CFR Ch. V · EU Reg. 833/2014",
+  eval:v=>v==="y"?[f("crit","제재 연계가 있습니다. 결제 은행과 보험사도 거래를 거절할 수 있으므로 진행을 멈추십시오.")]:[]},
+ {id:"x2",type:"yn",label:"수입국의 수입허가와 원자력 규제기관 인허가를 확인했는가?",cite:"수입국 법령",
+  eval:v=>v==="n"?[f("open","수입국 측 수입허가와 원자력 인허가 요건을 확인하십시오.")]:[]},
+ {id:"x3",type:"yn",label:"계약서에 수출통제 조항이 들어가 있는가?",cite:"계약 검토",
+  help:"허가 미취득 시 처리(일정 연장, 불가항력 또는 해지), 상대방 협조 의무, 재수출 금지, 수출통제 진술·보장.",
+  eval:v=>v==="n"?[f("warn","허가 지연·거부 위험이 매도인에게 그대로 남습니다. 허가 조건부 조항과 협조 의무를 넣으십시오.")]:[]},
+ {id:"x4",type:"yn",label:"대주단·정책금융기관(K-EXIM, K-SURE 등)의 제재·수출통제 준수 진술과 확약을 반영했는가?",cite:"금융계약 검토",
+  eval:v=>v==="n"?[f("warn","대출·보증 계약의 제재 준수 확약 위반은 기한이익 상실 사유가 될 수 있습니다. 확약 범위를 실제 통제 절차와 맞추십시오.")]:[]},
+ {id:"x5",type:"yn",label:"필요한 허가를 공식 허가 문서로 받았는가? (구두 확인·이메일 회신은 불충분)",cite:"자료집 9.3",
+  help:"허가는 이전 단위(기술·장비·품목)별로 선적, 기술 접근, 대금 지급 시점마다 확인합니다.",
+  eval:v=>v==="n"?[f("crit","공식 허가 문서를 받기 전에는 선적, 기술 접근 허용, 기술자료 송부를 하지 마십시오.")]:[]},
+ {id:"x6",type:"yn",label:"허가 조건(Provisos: 보고 의무, 보안 요건, 재이전 제한 등)을 계약과 내부 이행계획에 반영했는가?",cite:"10 CFR 810.12 · 허가서 조건",
+  help:"Part 810 특정허가는 활동 개시, 완료·중도종료, 미수행 결정 후 각 30일 이내, 일반허가는 활동 개시 후 30일 이내 보고합니다.",
+  eval:v=>v==="n"?[f("warn","허가 조건을 지키지 않으면 허가 자체가 무효가 될 수 있습니다. 조건별 담당자와 기한을 정하십시오.")]:[]},
+ {id:"x7",type:"yn",label:"미국·한국 허가 소요기간이 Financial Close, EPC 발효, COD 일정과 대주단 인출 선행조건에 반영되어 있는가?",cite:"PF 일정 관리",
+  eval:v=>v==="n"?[f("warn","허가 지연은 Financial Close 지연, EPC 발효·착공 지연, PPA 지체상금으로 이어집니다. 허가 일정을 사업 일정과 선행조건에 반영하십시오.")]:[]}
+]},
+{id:"s8",title:"판단 기록",lead:"",items:[]}
+];
+
+const SAMPLE={step:"s0",a:{
+ name:"[예시] 중유럽 원전 프로젝트 1차측 밸브·제어 패키지 수출",
+ item:"원전 1차 냉각계통용 대형 밸브 12기와 원격 제어반. 제어반에 미국산 PLC·센서 모듈 포함. 원자로 전용 설계 여부는 제조사 확인 중.",
+ hs:"8481.80",exporter:"[예시] OO중공업",dest:"체코",
+ j3:"n",j2:"y",j2a:"n",j2b:"u",j1:"u",j4:"n",usContent:"1850000",total:"9400000",j7:"n",j8:"n",j9:"n",
+ eccn:"2A292",cbasis:"제조사 제공 분류",c3:"n",reasons:["NP2","AT"],
+ l1:"n",l3:"n",
+ parties:[{name:"[예시] OO Engineering s.r.o.",status:"일치 없음",date:"2026-09-12"},{name:"",status:"",date:""},{name:"[예시] OO Project SPV",status:"일치 없음",date:"2026-10-20"},{name:"[예시] OO 원자력발전소 운영사",status:"일치 없음",date:"2026-10-20"},{name:"[예시] OO Logistics",status:"미실시",date:""},{name:"",status:"",date:""}],
+ aff:"n",rf:[],e1:"n",e2:"n",e2b:"y",e3:"n",
+ k1:"자가판정: 비해당",k2:"u",k6:"u",k7:"n",k3:"n",k4:"n",k5:"y",
+ x1:"n",x2:"y",x3:"n",x4:"u",x5:"n",x6:"u",x7:"n"},
+ n:{usContent:"제조사 BOM 기준 (2026-10 수령)",cbasis:"제조사 확인서, 사양 대조 미완료",k5:"원천기술 라이선스 계약 제7조 지역 제한 조항"},sample:true};
+
+const blank=()=>({step:"s0",a:{parties:ROLES.map(()=>({name:"",status:"",date:""})),reasons:[],rf:[]},n:{},sample:false});
+let S;
+try{const raw=localStorage.getItem(KEY);S=raw?JSON.parse(raw):null}catch(e){S=null}
+if(!S||!S.a) S=JSON.parse(JSON.stringify(SAMPLE));
+if(!Array.isArray(S.a.parties)) S.a.parties=ROLES.map(()=>({name:"",status:"",date:""}));
+while(S.a.parties.length<ROLES.length) S.a.parties.push({name:"",status:"",date:""});
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const visible=it=>!it.showIf||it.showIf(S);
+
+function evalAll(){
+  const out=[];
+  for(const st of STEPS){
+    for(const it of st.items){
+      if(!visible(it)) continue;
+      const v=S.a[it.id];
+      if(it.type==="yn"&&v==="u") out.push({step:st,it,sev:"open",msg:`${it.label} → 확인 필요`});
+      if(it.type==="redflags"){
+        const n=(v||[]).length;
+        (v||[]).forEach(i=>out.push({step:st,it,sev:"warn",msg:`위험 신호: ${REDFLAGS[i]}. 해소한 근거를 기록하십시오.`}));
+        if(n>=3) out.push({step:st,it,sev:"crit",msg:`위험 신호가 ${n}개입니다. 해소 전까지 거래를 보류하십시오.`});
+      }
+      if(it.type==="parties"){
+        const named=(v||[]).map((p,i)=>({...p,role:ROLES[i]})).filter(p=>p.name&&p.name.trim());
+        if(!named.length) out.push({step:st,it,sev:"open",msg:"거래 당사자 정보가 입력되지 않았습니다."});
+        named.forEach(p=>{
+          if(!p.status||p.status==="미실시") out.push({step:st,it,sev:"crit",msg:`${p.role} (${p.name}): 명단 조회를 하지 않았습니다.`});
+          else if(p.status.startsWith("잠재")) out.push({step:st,it,sev:"crit",msg:`${p.role} (${p.name}): 잠재 일치를 해소하기 전까지 진행을 보류하십시오.`});
+          else if(p.status.startsWith("일치(")) out.push({step:st,it,sev:"crit",msg:`${p.role} (${p.name}): 명단 등재 대상입니다. 거래를 멈추고 허가 요건을 확인하십시오(Entity List는 통상 거부 추정).`});
+          else if(p.status==="일치 없음"){
+            if(!p.date) out.push({step:st,it,sev:"open",msg:`${p.role} (${p.name}): 조회 일자를 기록하십시오.`});
+            else{const days=(Date.now()-new Date(p.date).getTime())/864e5; if(days>30) out.push({step:st,it,sev:"warn",msg:`${p.role} (${p.name}): 조회 후 ${Math.floor(days)}일이 지났습니다. 선적 직전에 다시 조회하십시오.`});}
+          }
+        });
+      }
+      if(it.eval&&v!==undefined&&v!=="") it.eval(v,S).forEach(r=>out.push({step:st,it,...r}));
+    }
+  }
+  const a=S.a,d=deMinimis(S),s1=STEPS[1];
+  if(a.j3==="n"&&a.j2==="n"&&a.j1==="n"&&a.j4==="n"&&(!d||!d.over)&&a.j7!=="y")
+    out.push({step:s1,it:{cite:"자료집 8.1 STEP 4"},sev:"info",msg:"DOE·NRC·EAR 어느 규정에도 해당하지 않는다는 판단입니다. 판단 과정을 '비관할(No-Jurisdiction) 메모'로 남기십시오. OFAC 명단과 §744.2 핵 최종용도 확인은 별도로 필요합니다."});
+  return out;
+}
+function counts(F){const c={crit:0,warn:0,open:0,info:0};F.forEach(x=>c[x.sev]++);return c}
+function progress(st){
+  const its=st.items.filter(it=>visible(it)&&!["calc","checks","redflags"].includes(it.type)&&it.id!=="destOther");
+  const done=its.filter(it=>{const v=S.a[it.id];if(it.type==="parties")return (v||[]).some(p=>p.name);return v!==undefined&&v!==""}).length;
+  return {done,total:its.length};
+}
+function verdict(F){
+  const c=counts(F);
+  let tot=0,done=0;STEPS.forEach(st=>{const p=progress(st);tot+=p.total;done+=p.done});
+  if(c.crit) return {cls:"crit",state:"선적·계약 보류",msg:`중대 이슈 ${c.crit}건을 해소(허가 취득, 전문판정, 상대방 확인 등)하기 전에는 진행하지 마십시오.`,done,tot};
+  if(done<tot*0.8) return {cls:"",state:"검토 진행 중",msg:`${tot}개 문항 중 ${done}개에 답했습니다.`,done,tot};
+  if(c.warn||c.open) return {cls:"warn",state:"조건부 진행",msg:"주의·확인 필요 항목의 근거를 기록하고 해소한 뒤 진행하십시오.",done,tot};
+  return {cls:"ok",state:"진행 가능 (기록 보관)",msg:"검토 기록을 의견서·내부 승인 문서에 첨부해 보관하십시오.",done,tot};
+}
+function stepDot(st,F){
+  const mine=F.filter(x=>x.step.id===st.id);
+  if(mine.some(x=>x.sev==="crit")) return "crit";
+  if(mine.some(x=>x.sev==="warn")) return "warn";
+  if(mine.some(x=>x.sev==="open")) return "open";
+  const p=progress(st); return p.total&&p.done===p.total?"ok":"";
+}
+
+function renderRail(F){
+  $("#rail").innerHTML=STEPS.map((st,i)=>{
+    const p=progress(st);
+    return `<button type="button" data-step="${st.id}" ${S.step===st.id?'aria-current="step"':""}>
+      <span class="no">${String(i+1).padStart(2,"0")}</span><span class="nm">${st.title}</span>${st.id==="s8"?"":`<span class="dot ${stepDot(st,F)}"></span>`}
+      ${st.id==="s8"?"":`<span class="prog">${p.done}/${p.total} 답변</span>`}</button>`}).join("");
+}
+function renderAside(F){
+  const v=verdict(F),c=counts(F);
+  const order={crit:0,warn:1,open:2,info:3};
+  const list=F.slice().sort((a,b)=>order[a.sev]-order[b.sev]);
+  $("#aside").innerHTML=`
+   <div class="verdict ${v.cls}"><div class="eyebrow">종합 판단</div><div class="state">${v.state}</div><p>${esc(v.msg)}</p></div>
+   <div class="counts"><div class="count crit"><b>${c.crit}</b><span>중대</span></div><div class="count warn"><b>${c.warn}</b><span>주의</span></div><div class="count open"><b>${c.open}</b><span>확인 필요</span></div></div>
+   <div class="ledger"><h3>판단 기록</h3>${list.length?`<ul>${list.map(x=>`<li><span class="pill ${x.sev}">${SEV[x.sev]}</span><span>${esc(x.msg)}</span><span class="where">${esc(x.step.title)}${x.it.cite?` · <span class="mono">${esc(x.it.cite)}</span>`:""}</span></li>`).join("")}</ul>`:`<div class="empty">아직 기록된 판단이 없습니다. 문항에 답하면 근거 조문과 함께 여기에 쌓입니다.</div>`}</div>`;
+}
+
+function field(it){
+  const v=S.a[it.id]??"";
+  const id="f-"+it.id;
+  let ctl="";
+  if(it.type==="text") ctl=`<input type="text" id="${id}" data-k="${it.id}" value="${esc(v)}" placeholder="${esc(it.ph||"")}">`;
+  if(it.type==="textarea") ctl=`<textarea id="${id}" data-k="${it.id}" placeholder="${esc(it.ph||"")}">${esc(v)}</textarea>`;
+  if(it.type==="number") ctl=`<input type="number" inputmode="decimal" min="0" id="${id}" data-k="${it.id}" value="${esc(v)}" placeholder="0">`;
+  if(it.type==="select") ctl=`<select id="${id}" data-k="${it.id}">${it.options.map(o=>`<option value="${esc(o)}" ${o===v?"selected":""}>${o?esc(o):"선택하십시오"}</option>`).join("")}</select>`;
+  if(it.type==="yn") ctl=`<div class="seg" role="group" aria-label="${esc(it.label)}" id="${id}">${YN.map(([k,l])=>`<button type="button" data-yn="${it.id}" data-v="${k}" aria-pressed="${v===k}">${l}</button>`).join("")}</div>`;
+  if(it.type==="checks") ctl=`<div class="checks" id="${id}">${it.options.map(o=>`<label><input type="checkbox" data-chk="${it.id}" value="${esc(o)}" ${(v||[]).includes(o)?"checked":""}><span class="mono">${esc(o)}</span></label>`).join("")}</div>`;
+  if(it.type==="redflags") ctl=`<div class="checks long" id="${id}">${REDFLAGS.map((o,i)=>`<label><input type="checkbox" data-rf="${i}" ${(v||[]).includes(i)?"checked":""}><span>${esc(o)}</span></label>`).join("")}</div>`;
+  if(it.type==="parties") ctl=`<div class="parties"><table><thead><tr><th>역할</th><th>상호</th><th>조회 결과</th><th>조회일</th></tr></thead><tbody>${ROLES.map((r,i)=>{const p=(S.a.parties||[])[i]||{};return `<tr><td>${r}</td><td><input type="text" id="p-${i}-name" data-p="${i}" data-pf="name" value="${esc(p.name)}" placeholder="상호"></td><td><select id="p-${i}-status" data-p="${i}" data-pf="status">${SCREEN.map(o=>`<option value="${o}" ${o===p.status?"selected":""}>${o||"선택"}</option>`).join("")}</select></td><td><input type="date" id="p-${i}-date" data-p="${i}" data-pf="date" value="${esc(p.date)}"></td></tr>`}).join("")}</tbody></table></div>`;
+  if(it.type==="calc") return `<div class="item"><div class="calc" id="calc">${calcText()}</div></div>`;
+  const label=["yn","checks","redflags","parties"].includes(it.type)?`<span class="lbl">${esc(it.label)}</span>`:`<label for="${id}">${esc(it.label)}</label>`;
+  const note=["calc"].includes(it.type)?"":`<input type="text" class="note" id="n-${it.id}" data-n="${it.id}" value="${esc(S.n[it.id]||"")}" placeholder="근거·메모 (자료명, 조문, 확인자, 일자)">`;
+  return `<div class="item"><div class="q">${label}${it.cite?`<span class="cite">${esc(it.cite)}</span>`:""}</div>${it.help?`<p class="help">${esc(it.help)}</p>`:""}${ctl}${note}</div>`;
+}
+function calcText(){
+  const d=deMinimis(S);
+  if(!d) return "De minimis 계산: 두 금액을 입력하면 비율을 계산합니다.";
+  return `De minimis 계산: ${d.pct.toFixed(2)}% / 기준 ${d.th}%${d.strict?" (E:1·E:2 국가)":""} → ${d.over?"기준 초과, EAR 적용":"기준 이하"}`;
+}
+
+function memoText(F){
+  const v=verdict(F),c=counts(F),today=new Date().toISOString().slice(0,10);
+  const L=[];
+  L.push("[수출통제 사전검증 기록]");
+  L.push(`건명: ${S.a.name||"-"}`);
+  L.push(`작성일: ${today}`);
+  L.push(`품목: ${(S.a.item||"-").replace(/\n/g," ")}`);
+  L.push(`HS: ${S.a.hs||"-"} | ECCN: ${S.a.eccn||"미정"} | 목적국: ${destOf(S)||"-"} | 수출자: ${S.a.exporter||"-"}`);
+  const d=deMinimis(S); if(d) L.push(`De minimis: ${d.pct.toFixed(2)}% (기준 ${d.th}%)`);
+  L.push("");
+  L.push(`■ 종합 판단: ${v.state}`);
+  L.push(`  ${v.msg}`);
+  L.push(`  중대 ${c.crit} / 주의 ${c.warn} / 확인 필요 ${c.open} / 답변 ${v.done}/${v.tot}`);
+  const sec=(t,sev)=>{const xs=F.filter(x=>x.sev===sev);if(!xs.length)return;L.push("");L.push(t);xs.forEach((x,i)=>L.push(`  ${i+1}. [${x.step.title}] ${x.msg}${x.it.cite?` (근거: ${x.it.cite})`:""}`))};
+  sec("■ 1. 중대 이슈","crit");sec("■ 2. 주의 사항","warn");sec("■ 3. 확인 필요 (Open Points)","open");sec("■ 4. 기록 사항","info");
+  L.push("");L.push("■ 5. 문항별 답변 및 근거");
+  const show=(it)=>{const v=S.a[it.id];
+    if(it.type==="yn") return ({y:"예",n:"아니오",u:"모름"})[v]||"미답변";
+    if(it.type==="checks") return (v||[]).join(", ")||"-";
+    if(it.type==="redflags") return (v||[]).length?(v||[]).map(i=>REDFLAGS[i]).join("; "):"해당 없음";
+    if(it.type==="parties") return (v||[]).map((p,i)=>p.name?`${ROLES[i]}=${p.name}(${p.status||"미기재"}${p.date?", "+p.date:""})`:null).filter(Boolean).join("; ")||"-";
+    return v||"미답변"};
+  STEPS.forEach(st=>{if(!st.items.length)return;L.push(`  [${st.title}]`);st.items.forEach(it=>{if(!visible(it)||it.type==="calc")return;L.push(`   - ${it.label}: ${show(it)}${S.n[it.id]?` / 근거: ${S.n[it.id]}`:""}`)})});
+  L.push("");
+  L.push("※ 본 기록은 판단 과정과 근거를 남기기 위한 사전검증 자료이며, 법적 효력이 있는 최종 판정이 아닙니다. 최종 판단은 BIS 공식 품목분류(CCATS)·허가, 산업통상자원부·전략물자관리원·원자력안전위원회의 판정 및 변호사 의견서에 따릅니다.");
+  return L.join("\n");
+}
+
+function renderMain(){
+  const st=STEPS.find(s=>s.id===S.step)||STEPS[0];
+  const i=STEPS.indexOf(st);
+  const prev=i>0?`<button class="btn" type="button" data-go="${STEPS[i-1].id}">← ${STEPS[i-1].title}</button>`:"<span></span>";
+  const next=i<STEPS.length-1?`<button class="btn primary" type="button" data-go="${STEPS[i+1].id}">${STEPS[i+1].title} →</button>`:"<span></span>";
+  if(st.id==="s8"){
+    const F=evalAll();
+    $("#main").innerHTML=`<div class="panel-head"><div class="eyebrow">Step 09</div><h2>판단 기록</h2><p>아래 메모를 복사해 의견서, 내부 승인 문서, 클라이언트 보고서에 붙이십시오. 문항별 답변과 근거 메모가 함께 들어갑니다.</p></div>
+     <div class="items"><div class="item"><div class="actions"><button class="btn primary" type="button" id="copy-memo">메모 복사</button><button class="btn" type="button" id="copy-json">입력 데이터(JSON) 복사</button></div><div class="toast" id="toast" role="status"></div><textarea class="memo" id="memo" readonly>${esc(memoText(F))}</textarea></div></div>
+     <div class="panel-foot">${prev}<span></span></div>`;
+    return;
+  }
+  $("#main").innerHTML=`<div class="panel-head"><div class="eyebrow">Step ${String(i+1).padStart(2,"0")}</div><h2>${st.title}</h2><p>${esc(st.lead)}</p></div>
+   <div class="items">${st.items.filter(visible).map(field).join("")}</div>
+   <div class="panel-foot">${prev}${next}</div>`;
+}
+function refresh(full){
+  const F=evalAll();
+  renderRail(F);renderAside(F);
+  if(full) renderMain(); else { const c=$("#calc"); if(c) c.textContent=calcText(); }
+  $("#sample-bar").hidden=!S.sample;
+  save();
+}
+function markEdited(){ if(S.sample){S.sample=false;} }
+
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button"); if(!t) return;
+  if(t.dataset.step||t.dataset.go){S.step=t.dataset.step||t.dataset.go;refresh(true);$("#main").scrollIntoView({block:"start",behavior:"smooth"});return}
+  if(t.dataset.yn){const k=t.dataset.yn;S.a[k]=S.a[k]===t.dataset.v?"":t.dataset.v;markEdited();
+    const before=STEPS.find(s=>s.id===S.step).items.filter(visible).length;
+    t.parentNode.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(S.a[k]===b.dataset.v)));
+    const after=STEPS.find(s=>s.id===S.step).items.filter(visible).length;
+    refresh(before!==after);return}
+  if(t.id==="btn-result"){S.step="s8";refresh(true);return}
+  if(t.id==="btn-sample"){askConfirm("지금 입력한 내용 대신 예시 거래를 불러옵니다. 계속할까요?",()=>{S=JSON.parse(JSON.stringify(SAMPLE));refresh(true)});return}
+  if(t.id==="btn-reset"||t.id==="btn-reset2"){askConfirm("입력한 내용이 모두 지워집니다. 계속할까요?",()=>{S=blank();refresh(true)});return}
+  if(t.id==="confirm-no"){$("#confirm-bar").hidden=true;return}
+  if(t.id==="confirm-yes"){$("#confirm-bar").hidden=true;pending&&pending();pending=null;return}
+  if(t.id==="copy-memo"||t.id==="copy-json"){
+    const text=t.id==="copy-memo"?$("#memo").value:JSON.stringify({a:S.a,n:S.n},null,2);
+    const ok=()=>{$("#toast").textContent=t.id==="copy-memo"?"메모를 복사했습니다.":"입력 데이터를 복사했습니다."};
+    const fallback=()=>{const m=$("#memo");m.value=text;m.focus();m.select();$("#toast").textContent="복사가 막혀 있습니다. 선택된 내용을 Ctrl+C(⌘C)로 복사하십시오."};
+    try{navigator.clipboard.writeText(text).then(ok,fallback)}catch(err){fallback()}
+  }
+});
+let pending=null;
+function askConfirm(msg,fn){$("#confirm-msg").textContent=msg;pending=fn;$("#confirm-bar").hidden=false;$("#confirm-bar").scrollIntoView({block:"nearest"})}
+
+document.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.k){S.a[t.dataset.k]=t.value;markEdited();refresh(t.tagName==="SELECT"&&STEPS.some(s=>s.items.some(it=>it.showIf)));return}
+  if(t.dataset.n){S.n[t.dataset.n]=t.value;markEdited();save();$("#sample-bar").hidden=!S.sample;return}
+  if(t.dataset.p!==undefined){const i=+t.dataset.p;S.a.parties[i]=S.a.parties[i]||{};S.a.parties[i][t.dataset.pf]=t.value;markEdited();refresh(false);return}
+  if(t.dataset.chk){const k=t.dataset.chk;const set=new Set(S.a[k]||[]);t.checked?set.add(t.value):set.delete(t.value);S.a[k]=[...set];markEdited();refresh(false);return}
+  if(t.dataset.rf!==undefined){const i=+t.dataset.rf;const set=new Set(S.a.rf||[]);t.checked?set.add(i):set.delete(i);S.a.rf=[...set].sort((a,b)=>a-b);markEdited();refresh(false);return}
+});
+document.addEventListener("change",e=>{const t=e.target;if(t.tagName==="SELECT"&&t.dataset.k){refresh(true)}});
+
+refresh(true);
+})();
+</script>
